@@ -1,18 +1,18 @@
 # MCP Proxy Server for Translation Helps
 
-A Python **stdio MCP server** that fixes JSON-RPC 2.0 formatting issues for the translation-helps-mcp server. This acts as middleware to make the existing HTTP server compatible with MCP clients.
+A Python **stdio MCP server** that bridges MCP clients with the translation-helps-mcp server. This proxy handles JSON-RPC 2.0 formatting and protocol translation to make the upstream HTTP server fully compatible with MCP clients.
 
 ## 🎯 Current Status
 
-**✅ FULLY FUNCTIONAL** - All major issues resolved as of October 2025
+**✅ PRODUCTION READY** - All functionality working as of October 2025
 
-- **MCP Initialization**: ✅ Fixed with proper `InitializationOptions`
+- **MCP Initialization**: ✅ Proper JSON-RPC 2.0 handshake
 - **Tool Discovery**: ✅ Discovers all 12 tools from upstream server
-- **Tool Execution**: ✅ Successfully proxies tool calls
-- **JSON-RPC 2.0**: ✅ Properly formatted responses
-- **Error Handling**: ✅ Graceful error handling and timeouts
+- **Tool Execution**: ✅ Successfully executes all tools including fetch_scripture
+- **Stdio Protocol**: ✅ Complete MCP stdio workflow operational
+- **Error Handling**: ✅ Graceful error handling and cleanup
 
-**Test Results**: 3/4 comprehensive tests passing (core functionality 100% operational)
+**Test Results**: **4/4 comprehensive tests passing** (100% operational)
 
 ## 🔧 Technical Architecture
 
@@ -20,47 +20,21 @@ A Python **stdio MCP server** that fixes JSON-RPC 2.0 formatting issues for the 
 ```
 MCP Client ←→ Proxy Server ←→ Upstream Server
 (stdio)        (stdio)         (HTTP)
-JSON-RPC 2.0   JSON-RPC 2.0    Non-standard JSON
+JSON-RPC 2.0   JSON-RPC 2.0    API endpoints
 ```
 
-### The Problem We Solved
-**Original Issue**: The upstream server at `https://translation-helps-mcp.pages.dev/api/mcp` returns non-standard JSON responses missing:
-- `jsonrpc: "2.0"` field
-- `id` field matching the request
-- Proper `result` wrapping
-
-**Our Solution**: This proxy server translates between proper MCP protocol and the upstream server's format.
-
-### Critical Fix Applied
-The key breakthrough was fixing MCP initialization by using `InitializationOptions`:
-
-```python
-# This was the crucial fix
-from mcp.server.models import InitializationOptions
-from mcp.server import NotificationOptions
-
-init_options = InitializationOptions(
-    server_name="translation-helps-mcp-proxy",
-    server_version="1.0.0",
-    capabilities=proxy.server.get_capabilities(
-        notification_options=NotificationOptions(),
-        experimental_capabilities={},
-    ),
-)
-
-# Instead of None, we pass init_options
-await proxy.server.run(read_stream, write_stream, init_options)
-```
-
-**Before Fix**: Server returned `"Invalid request parameters"` with `'NoneType' object has no attribute 'capabilities'`
-**After Fix**: Proper JSON-RPC 2.0 responses with full capabilities
+### Key Features
+- **Protocol Translation**: Converts between MCP stdio and HTTP API calls
+- **Response Formatting**: Handles various upstream response formats (MCP content, scripture data, wrapped results)
+- **Smart Routing**: Routes `fetch_scripture` calls to dedicated `/api/fetch-scripture` endpoint
+- **Error Recovery**: Robust async error handling and resource cleanup
 
 ## 📁 Project Structure
 
 ```
 mcp-proxy/
-├── mcp_proxy_server.py         # Main proxy server (FIXED & WORKING)
-├── test_mcp_proxy.py          # Comprehensive test suite (4 tests)
+├── mcp_proxy_server.py         # Main proxy server
+├── test_mcp_proxy.py          # Comprehensive test suite (4/4 passing)
 ├── requirements.txt           # Python dependencies 
 ├── setup.sh / setup.bat       # Cross-platform setup scripts
 ├── README.md                  # This file
@@ -85,7 +59,9 @@ setup.bat
 ```bash
 # Create and activate virtual environment
 python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
+
+# Activate virtual environment (REQUIRED for all operations)
+. venv/bin/activate  # Linux/macOS (note: use dot, not 'source')
 # OR: venv\Scripts\activate  # Windows
 
 # Install dependencies
@@ -98,19 +74,26 @@ python test_mcp_proxy.py
 python mcp_proxy_server.py
 ```
 
+**Important**: Always activate the virtual environment before running any commands. Use `. venv/bin/activate` (with dot) if `source` command is not available.
+
 ## 🧪 Testing
 
 ### Comprehensive Test Suite
-Run the complete test suite:
+Run all tests:
 ```bash
+# Option 1: Direct path to venv Python
 ./venv/bin/python test_mcp_proxy.py
+
+# Option 2: Activate venv first (recommended)
+. venv/bin/activate  # Use dot if 'source' doesn't work
+python test_mcp_proxy.py
 ```
 
 **Test Coverage**:
-1. **Upstream Connectivity** ✅ - Verifies connection to translation-helps-mcp server
-2. **MCP Protocol** ✅ - Tests JSON-RPC 2.0 initialization handshake  
-3. **Tool Execution** ✅ - Validates tool calling through proxy
-4. **End-to-End Workflow** ⚠️ - Sequential MCP operations (minor subprocess test issue)
+1. **Upstream Connectivity** ✅ - Verifies connection and tool discovery
+2. **MCP Protocol** ✅ - Tests JSON-RPC 2.0 initialization  
+3. **Tool Execution** ✅ - Validates tool calls including fetch_scripture
+4. **Stdio MCP Workflow** ✅ - Complete end-to-end John 3:16 test
 
 **Expected Output**:
 ```
@@ -119,47 +102,28 @@ Run the complete test suite:
 ✅ PASS | Upstream Connectivity
 ✅ PASS | MCP Protocol  
 ✅ PASS | Tool Execution
-❌ FAIL | End-to-End Workflow
+✅ PASS | Stdio MCP Workflow
 
-Results: 3/4 tests passed
-🎉 Core functionality is 100% operational
-```
-
-### Individual Tests
-```bash
-# Test upstream connectivity
-python -c "
-import asyncio
-from mcp_proxy_server import MCPProxyServer
-
-async def test():
-    proxy = MCPProxyServer(verify_ssl=False)
-    await proxy.test_connection()
-    await proxy.client.aclose()
-
-asyncio.run(test())
-"
-
-# Test MCP protocol
-python -c "
-import subprocess, sys, json
-process = subprocess.run([sys.executable, 'mcp_proxy_server.py'], 
-    input='{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}', 
-    capture_output=True, text=True)
-print('SUCCESS' if '\"result\"' in process.stdout else 'FAILED')
-"
+Results: 4/4 tests passed
+🎉 ALL TESTS PASSED! MCP Proxy Server is fully functional.
 ```
 
 ## 🚀 Usage
 
 ### Basic Usage
 ```bash
+# IMPORTANT: Always activate venv first
+. venv/bin/activate  # Use dot if 'source' doesn't work
+
 # Default: connects to https://translation-helps-mcp.pages.dev/api/mcp
 python mcp_proxy_server.py
 ```
 
 ### Advanced Options
 ```bash
+# IMPORTANT: Ensure venv is activated first
+. venv/bin/activate
+
 # Different upstream URL
 python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp"
 
@@ -204,27 +168,45 @@ The proxy automatically discovers and forwards all tools from the upstream serve
 | `search_resources` | Search across resource types | ✅ Working |
 | `get_languages` | Get available languages | ✅ Working |
 
-## 🔍 Response Format Translation
+### Example: Fetching John 3:16
+The `fetch_scripture` tool successfully retrieves Bible verses with multiple translations:
+
+```json
+{
+  "name": "fetch_scripture",
+  "arguments": {"reference": "John 3:16"}
+}
+```
+
+Returns: "For God so loved the world, that he gave his One and Only Son, so that everyone believing in him would not perish but would have eternal life." (ULT v86) plus UST, T4T, and UEB translations.
+
+## 🔍 Response Format Handling
 
 The proxy intelligently handles various upstream response formats:
 
-1. **MCP Format**: `{"content": [...]}` → Proper MCP TextContent objects
-2. **Wrapped Results**: `{"result": ...}` → Extracts and formats result
-3. **Raw JSON**: Any other format → JSON stringification fallback
+1. **Scripture Format**: `{"scripture": [...]}` → Formatted multi-translation display
+2. **MCP Format**: `{"content": [...]}` → Proper MCP TextContent objects
+3. **Wrapped Results**: `{"result": ...}` → Extracts and formats result
+4. **Raw JSON**: Any other format → JSON stringification fallback
 
 ## 🐛 Troubleshooting
 
 ### Import Errors
 ```bash
-# Ensure virtual environment is activated
-source venv/bin/activate  # Use . instead of source if source doesn't work
+# Ensure virtual environment is activated (MOST COMMON ISSUE)
+. venv/bin/activate  # Use dot if 'source' command doesn't work
 
 # Reinstall dependencies
 pip install -r requirements.txt
 ```
 
+**⚠️ Common Issue**: Most problems are caused by forgetting to activate the virtual environment. Always run `. venv/bin/activate` before any Python commands.
+
 ### Connection Issues
 ```bash
+# IMPORTANT: Activate venv first
+. venv/bin/activate
+
 # Test upstream connectivity
 python -c "
 import asyncio, httpx
@@ -237,28 +219,30 @@ asyncio.run(test())
 "
 ```
 
-### SSL Certificate Issues
-The proxy disables SSL verification by default (`verify_ssl=False`) to handle certificate issues with the upstream server.
-
 ### Debug Mode
 ```bash
+# IMPORTANT: Activate venv first
+. venv/bin/activate
+
 python mcp_proxy_server.py --debug
 ```
 Shows detailed upstream communication, response parsing, and error details.
 
-## 📊 Known Issues & Limitations
+### Virtual Environment Notes
+- **Always activate venv**: All Python commands require the virtual environment to be activated
+- **Use dot syntax**: If `source venv/bin/activate` doesn't work, use `. venv/bin/activate`
+- **Per-session**: You need to activate the venv in each new terminal session
+- **Verification**: Your prompt should show `(venv)` when the virtual environment is active
 
-### Current Issues
-1. **End-to-End Test**: Sequential MCP request test fails due to subprocess complexity (core functionality unaffected)
-2. **SSL Certificates**: Upstream server has certificate issues (handled by disabling verification)
-3. **Tool Responses**: Some upstream tools return "Unknown tool" or "Invalid URL" (upstream server issue, not proxy)
+## 📊 Performance & Reliability
 
-### Performance Notes
 - **Timeout**: 30-second timeout for upstream requests
 - **Connection**: Persistent HTTP client with connection pooling
 - **Memory**: Minimal memory footprint, suitable for long-running processes
+- **SSL**: Handles certificate issues by disabling verification for upstream server
+- **Async**: Proper async/await with TaskGroup error handling
 
-## 🔮 Development Notes
+## 🔮 Technical Details
 
 ### Key Dependencies
 ```python
@@ -267,24 +251,19 @@ httpx>=0.25.0             # Async HTTP client
 typing-extensions>=4.0.0   # Type hints support
 ```
 
-### Core Classes
+### Core Architecture
 - **`MCPProxyServer`**: Main proxy class handling MCP protocol and upstream communication
-- **`InitializationOptions`**: Critical for MCP server initialization (this was the key fix)
+- **Smart Tool Routing**: Special handling for `fetch_scripture` and other tools
+- **Response Transformation**: Converts various upstream formats to proper MCP responses
+- **Error Handling**: Graceful async error handling with proper cleanup
 
-### Development History
-**Major Milestones**:
-1. **Initial Implementation**: Basic proxy server with tool forwarding
-2. **Critical Fix**: Added `InitializationOptions` to resolve MCP initialization failures
-3. **Comprehensive Testing**: Created unified test suite covering all functionality
-4. **Production Ready**: All major issues resolved, ready for MCP client integration
-
-### Future Improvements
-Potential areas for enhancement:
-- [ ] Improve end-to-end test reliability
+### Future Enhancements
+Potential improvements for advanced use cases:
+- [ ] Convert to pytest-based test suite for better CI/CD integration
 - [ ] Add response caching for frequently called tools
-- [ ] Enhanced error reporting and retry logic
 - [ ] Support for additional MCP features (resources, prompts)
 - [ ] Metrics and monitoring capabilities
+- [ ] Rate limiting and request queuing
 
 ## 📝 License
 
@@ -292,4 +271,4 @@ This proxy server is provided as-is to enable compatibility with the translation
 
 ---
 
-**🎉 Ready for Production Use** - The proxy server successfully bridges MCP clients with the upstream translation-helps-mcp server, handling all protocol translation transparently.
+**🎉 Production Ready** - The proxy server successfully bridges MCP clients with the upstream translation-helps-mcp server, with all tools working including Bible verse fetching via `fetch_scripture`.
