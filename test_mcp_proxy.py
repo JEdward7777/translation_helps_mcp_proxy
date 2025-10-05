@@ -191,8 +191,179 @@ async def test_tool_execution():
     finally:
         await proxy.client.aclose()
 
-# End-to-end testing is now handled by test_john_3_16_final.py
-# which properly implements the MCP stdio protocol
+async def test_stdio_workflow():
+    """Test 4: Complete stdio MCP workflow with John 3:16."""
+    print("\n📖 Test 4: Stdio MCP Workflow (John 3:16)")
+    print("-" * 40)
+    
+    # Start the MCP server as subprocess
+    process = subprocess.Popen(
+        [sys.executable, "mcp_proxy_server.py"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=Path.cwd()
+    )
+    
+    try:
+        # Step 1: Initialize
+        print("   1️⃣ Initializing MCP connection...")
+        init_request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "roots": {"listChanged": True},
+                    "sampling": {}
+                },
+                "clientInfo": {
+                    "name": "test-client",
+                    "version": "1.0.0"
+                }
+            }
+        }
+        
+        # Send initialize request
+        process.stdin.write(json.dumps(init_request) + "\n")
+        process.stdin.flush()
+        
+        # Read initialize response
+        init_response_line = process.stdout.readline()
+        if init_response_line:
+            init_response = json.loads(init_response_line.strip())
+            if init_response.get("jsonrpc") == "2.0" and "result" in init_response:
+                print("   ✅ MCP initialization successful")
+            else:
+                print(f"   ❌ MCP initialization failed: {init_response}")
+                return False
+        else:
+            print("   ❌ No initialize response received")
+            return False
+        
+        # Step 2: Send initialized notification
+        print("   2️⃣ Sending initialized notification...")
+        initialized_notification = {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+        }
+        
+        process.stdin.write(json.dumps(initialized_notification) + "\n")
+        process.stdin.flush()
+        
+        # Give server time to process notification
+        await asyncio.sleep(0.5)
+        
+        # Step 3: Call fetch_scripture
+        print("   3️⃣ Calling fetch_scripture for John 3:16...")
+        tool_request = {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "fetch_scripture",
+                "arguments": {
+                    "reference": "John 3:16"
+                }
+            }
+        }
+        
+        process.stdin.write(json.dumps(tool_request) + "\n")
+        process.stdin.flush()
+        
+        # Read tool response with timeout
+        try:
+            # Wait for response with asyncio timeout
+            response_line = await asyncio.wait_for(
+                asyncio.create_task(asyncio.to_thread(process.stdout.readline)),
+                timeout=10.0
+            )
+            
+            if response_line:
+                tool_response = json.loads(response_line.strip())
+                
+                if tool_response.get("jsonrpc") == "2.0" and "result" in tool_response:
+                    result = tool_response["result"]
+                    
+                    # Handle MCP tool response format
+                    if isinstance(result, dict) and "content" in result:
+                        content_list = result["content"]
+                        if isinstance(content_list, list) and len(content_list) > 0:
+                            content = content_list[0]
+                            if content.get("type") == "text" and content.get("text"):
+                                verse_text = content["text"]
+                                print("   ✅ fetch_scripture successful")
+                                print(f"   📖 John 3:16: {verse_text[:100]}...")
+                                
+                                # Verify it's the correct verse
+                                if "God so loved the world" in verse_text:
+                                    print("   ✅ Correct John 3:16 text verified!")
+                                    print(f"   📊 Found {verse_text.count('(')} translations")
+                                    return True
+                                else:
+                                    print("   ⚠️  Text doesn't match expected John 3:16")
+                                    return False
+                            else:
+                                print(f"   ❌ Unexpected content item format: {content}")
+                                return False
+                        else:
+                            print(f"   ❌ No content in content list: {content_list}")
+                            return False
+                    elif isinstance(result, list) and len(result) > 0:
+                        # Handle direct list format
+                        content = result[0]
+                        if content.get("type") == "text" and content.get("text"):
+                            verse_text = content["text"]
+                            print("   ✅ fetch_scripture successful")
+                            print(f"   📖 John 3:16: {verse_text[:100]}...")
+                            
+                            # Verify it's the correct verse
+                            if "God so loved the world" in verse_text:
+                                print("   ✅ Correct John 3:16 text verified!")
+                                return True
+                            else:
+                                print("   ⚠️  Text doesn't match expected John 3:16")
+                                return False
+                        else:
+                            print(f"   ❌ Unexpected content format: {content}")
+                            return False
+                    else:
+                        print(f"   ❌ Unexpected result format: {result}")
+                        return False
+                else:
+                    print(f"   ❌ Tool call failed: {tool_response}")
+                    return False
+            else:
+                print("   ❌ No tool response received")
+                return False
+                
+        except asyncio.TimeoutError:
+            print("   ❌ Tool response timed out")
+            return False
+        
+    except Exception as e:
+        print(f"   ❌ Unexpected error: {e}")
+        return False
+    finally:
+        # Clean shutdown
+        try:
+            process.stdin.close()
+            # Give server time to clean up
+            await asyncio.sleep(1.0)
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    await asyncio.wait_for(
+                        asyncio.create_task(asyncio.to_thread(process.wait)),
+                        timeout=5.0
+                    )
+                except asyncio.TimeoutError:
+                    process.kill()
+        except Exception as cleanup_error:
+            print(f"   ⚠️  Cleanup warning: {cleanup_error}")
 
 async def main():
     """Run all tests and provide summary."""
@@ -203,6 +374,7 @@ async def main():
         ("Upstream Connectivity", test_upstream_connectivity),
         ("MCP Protocol", test_mcp_protocol),
         ("Tool Execution", test_tool_execution),
+        ("Stdio MCP Workflow", test_stdio_workflow),
     ]
     
     results = []
@@ -235,7 +407,7 @@ async def main():
         print("   1. MCP protocol initialization works correctly")
         print("   2. Upstream server connectivity is stable")
         print("   3. Tool execution is functioning")
-        print("   📝 Note: End-to-end stdio testing available in test_john_3_16_final.py")
+        print("   4. Complete stdio MCP workflow operational")
     else:
         print(f"\n⚠️  {len(tests) - passed} test(s) failed. Please review the output above.")
     
