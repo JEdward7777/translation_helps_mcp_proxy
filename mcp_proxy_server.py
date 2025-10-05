@@ -101,6 +101,25 @@ class MCPProxyServer:
                             content_list.append(TextContent(type="text", text=item["text"]))
                     return content_list if content_list else [TextContent(type="text", text="Empty response")]
                 
+                elif "scripture" in response:
+                    # Direct API endpoint returns scripture format
+                    scripture_list = response["scripture"]
+                    if scripture_list:
+                        # Format the scripture nicely for display
+                        formatted_text = ""
+                        for i, scripture in enumerate(scripture_list):
+                            text = scripture.get("text", "")
+                            translation = scripture.get("translation", "")
+                            if i > 0:
+                                formatted_text += "\n\n"
+                            formatted_text += f"{text}"
+                            if translation:
+                                formatted_text += f" ({translation})"
+                        
+                        return [TextContent(type="text", text=formatted_text)]
+                    else:
+                        return [TextContent(type="text", text="No scripture text found")]
+                
                 elif "result" in response:
                     # Upstream returns wrapped result
                     result_text = json.dumps(response["result"], indent=2) if isinstance(response["result"], dict) else str(response["result"])
@@ -122,6 +141,40 @@ class MCPProxyServer:
             if method == "tools/list":
                 # For tools/list, use GET method as the server supports it
                 response = await self.client.get(f"{self.upstream_url}?method=tools/list")
+            elif method == "tools/call":
+                # Tool calls need to go to specific endpoints, not the MCP endpoint
+                tool_name = params.get("name")
+                tool_args = params.get("arguments", {})
+                
+                # Route to the specific tool endpoint
+                if tool_name == "fetch_scripture":
+                    # Use the direct API endpoint for fetch_scripture
+                    base_url = self.upstream_url.replace("/api/mcp", "")
+                    api_url = f"{base_url}/api/fetch-scripture"
+                    
+                    # Convert arguments to query parameters
+                    query_params = {}
+                    if "reference" in tool_args:
+                        query_params["reference"] = tool_args["reference"]
+                    if "language" in tool_args:
+                        query_params["language"] = tool_args["language"]
+                    if "organization" in tool_args:
+                        query_params["organization"] = tool_args["organization"]
+                    
+                    response = await self.client.get(api_url, params=query_params)
+                    
+                else:
+                    # For other tools, try the MCP endpoint first (fallback)
+                    request_body = {
+                        "method": method,
+                        "params": params
+                    }
+                    
+                    response = await self.client.post(
+                        self.upstream_url,
+                        json=request_body,
+                        headers={"Content-Type": "application/json"}
+                    )
             else:
                 # For other methods, use POST
                 request_body = {
