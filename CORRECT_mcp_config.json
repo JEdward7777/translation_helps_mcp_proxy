@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "translation-helps-mcp-proxy": {
+      "command": "python",
+      "args": ["mcp_proxy_server.py"],
+      "cwd": "/absolute/path/to/mcp-proxy"
+    }
+  }
+}

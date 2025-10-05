@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "translation-helps-mcp-proxy": {
+      "command": "python",
+      "args": ["mcp_proxy_server.py"],
+      "cwd": "/path/to/mcp-proxy",
+      "env": {
+        "PYTHONPATH": "/path/to/mcp-proxy/venv/lib/python3.12/site-packages"
+      }
+    }
+  }
+}
