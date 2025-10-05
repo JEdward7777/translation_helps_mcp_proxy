@@ -5,7 +5,10 @@ Test script for the MCP Proxy Server
 
 import asyncio
 import json
+import sys
+from io import StringIO
 from mcp_proxy_server import MCPProxyServer
+from mcp.client import stdio_client
 
 async def test_mcp_proxy():
     """Test the MCP proxy server functionality."""

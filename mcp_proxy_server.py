@@ -12,22 +12,10 @@ import logging
 import sys
 from typing import Any, Dict, Optional
 import httpx
-from mcp.server import Server
+from mcp.server import Server, NotificationOptions
+from mcp.server.models import InitializationOptions
+from mcp.server.stdio import stdio_server
 from mcp.types import (
-    CallToolRequest,
-    CallToolResult,
-    GetPromptRequest,
-    GetPromptResult,
-    InitializeRequest,
-    InitializeResult,
-    ListPromptsRequest,
-    ListPromptsResult,
-    ListResourcesRequest,
-    ListResourcesResult,
-    ListToolsRequest,
-    ListToolsResult,
-    Prompt,
-    Resource,
     TextContent,
     Tool,
 )
@@ -41,8 +29,15 @@ class MCPProxyServer:
     
     def __init__(self, upstream_url: str = "https://translation-helps-mcp.pages.dev/api/mcp", verify_ssl: bool = False):
         self.upstream_url = upstream_url
+        # Initialize server with proper name
         self.server = Server("translation-helps-mcp-proxy")
         self.client = httpx.AsyncClient(timeout=30.0, verify=verify_ssl)
+        
+        # Set up server info and capabilities
+        self.server.server_info = {
+            "name": "translation-helps-mcp-proxy",
+            "version": "1.0.0"
+        }
         
         # Register handlers
         self._register_handlers()
@@ -160,29 +155,20 @@ class MCPProxyServer:
             logger.error(f"Error calling upstream server for method {method}: {e}")
             return None
     
-    async def run(self):
-        """Run the proxy server."""
+    async def test_connection(self):
+        """Test connection to upstream server."""
         try:
-            # Test connection to upstream server first
             logger.info(f"Testing connection to upstream server: {self.upstream_url}")
             test_response = await self.client.get(f"{self.upstream_url}?method=ping")
             if test_response.status_code == 200:
                 logger.info("Successfully connected to upstream server")
+                return True
             else:
                 logger.warning(f"Upstream server test returned status {test_response.status_code}")
-            
-            # Run the MCP server
-            logger.info("Starting MCP proxy server...")
-            async with self.server.create_session() as session:
-                await session.run()
-                
-        except KeyboardInterrupt:
-            logger.info("Shutting down proxy server...")
+                return False
         except Exception as e:
-            logger.error(f"Error running proxy server: {e}")
-            raise
-        finally:
-            await self.client.aclose()
+            logger.error(f"Failed to connect to upstream server: {e}")
+            return False
 
 async def main():
     """Main entry point."""
@@ -205,9 +191,32 @@ async def main():
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     
-    # Create and run the proxy server
+    # Create the proxy server
     proxy = MCPProxyServer(upstream_url=args.upstream_url)
-    await proxy.run()
+    
+    # Test connection
+    await proxy.test_connection()
+    
+    # Create initialization options
+    init_options = InitializationOptions(
+        server_name="translation-helps-mcp-proxy",  # Match the name passed to Server()
+        server_version="1.0.0",  # Set server version
+        capabilities=proxy.server.get_capabilities(
+            notification_options=NotificationOptions(),  # Use defaults
+            experimental_capabilities={},  # No experimental capabilities needed
+        ),
+    )
+    
+    # Run the MCP server using stdio
+    logger.info("Starting MCP proxy server...")
+    try:
+        async with stdio_server() as (read_stream, write_stream):
+            await proxy.server.run(read_stream, write_stream, init_options)
+    except Exception as e:
+        logger.error(f"Error running MCP server: {e}")
+        raise
+    finally:
+        await proxy.client.aclose()
 
 if __name__ == "__main__":
     try:
