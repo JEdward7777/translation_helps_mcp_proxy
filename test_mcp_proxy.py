@@ -191,117 +191,8 @@ async def test_tool_execution():
     finally:
         await proxy.client.aclose()
 
-async def test_end_to_end():
-    """Test 4: Complete end-to-end MCP workflow."""
-    print("\n🚀 Test 4: End-to-End MCP Workflow")
-    print("-" * 40)
-    
-    # Test sequence: initialize -> list tools -> call tool
-    test_script = '''
-import asyncio
-import json
-import sys
-from pathlib import Path
-
-async def run_mcp_sequence():
-    import subprocess
-    
-    process = subprocess.Popen(
-        [sys.executable, "mcp_proxy_server.py"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        cwd=Path.cwd()
-    )
-    
-    try:
-        # Step 1: Initialize
-        init_request = {
-            "jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {"roots": {"listChanged": True}},
-                "clientInfo": {"name": "test", "version": "1.0"}
-            }
-        }
-        
-        # Step 2: List tools (after init)
-        list_tools_request = {
-            "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}
-        }
-        
-        # Send both requests
-        requests = json.dumps(init_request) + "\\n" + json.dumps(list_tools_request) + "\\n"
-        stdout, stderr = process.communicate(input=requests, timeout=15)
-        
-        responses = [json.loads(line) for line in stdout.strip().split("\\n") if line.strip()]
-        
-        # Check initialize response
-        init_response = responses[0] if responses else None
-        if init_response and "result" in init_response:
-            print("✅ Initialize: SUCCESS")
-        else:
-            print("❌ Initialize: FAILED")
-            return False
-        
-        # Check tools list response  
-        if len(responses) > 1:
-            tools_response = responses[1]
-            if "result" in tools_response and "tools" in tools_response["result"]:
-                tool_count = len(tools_response["result"]["tools"])
-                print(f"✅ List Tools: SUCCESS ({tool_count} tools)")
-                return True
-            else:
-                print("❌ List Tools: FAILED")
-                return False
-        else:
-            print("❌ Missing tools response")
-            return False
-            
-    except Exception as e:
-        print(f"❌ End-to-end test failed: {e}")
-        return False
-    finally:
-        process.terminate()
-
-if __name__ == "__main__":
-    result = asyncio.run(run_mcp_sequence())
-    sys.exit(0 if result else 1)
-'''
-    
-    try:
-        # Write and run the end-to-end test
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write(test_script)
-            temp_script = f.name
-        
-        result = subprocess.run([sys.executable, temp_script], 
-                              capture_output=True, text=True, cwd='.')
-        
-        print("   Test output:")
-        print(f"   {result.stdout}")
-        
-        if result.stderr:
-            print(f"   Errors: {result.stderr}")
-        
-        success = result.returncode == 0 and "✅ List Tools: SUCCESS" in result.stdout
-        if success:
-            print("   ✅ End-to-end workflow successful")
-        else:
-            print("   ❌ End-to-end workflow failed")
-        
-        return success
-        
-    except Exception as e:
-        print(f"   ❌ Error running end-to-end test: {e}")
-        return False
-    finally:
-        try:
-            import os
-            os.unlink(temp_script)
-        except:
-            pass
+# End-to-end testing is now handled by test_john_3_16_final.py
+# which properly implements the MCP stdio protocol
 
 async def main():
     """Run all tests and provide summary."""
@@ -312,7 +203,6 @@ async def main():
         ("Upstream Connectivity", test_upstream_connectivity),
         ("MCP Protocol", test_mcp_protocol),
         ("Tool Execution", test_tool_execution),
-        ("End-to-End Workflow", test_end_to_end),
     ]
     
     results = []
@@ -343,9 +233,9 @@ async def main():
         print("\n🎉 ALL TESTS PASSED! MCP Proxy Server is fully functional.")
         print("\n🚀 Ready for production use:")
         print("   1. MCP protocol initialization works correctly")
-        print("   2. Upstream server connectivity is stable") 
+        print("   2. Upstream server connectivity is stable")
         print("   3. Tool execution is functioning")
-        print("   4. End-to-end workflows are operational")
+        print("   📝 Note: End-to-end stdio testing available in test_john_3_16_final.py")
     else:
         print(f"\n⚠️  {len(tests) - passed} test(s) failed. Please review the output above.")
     
