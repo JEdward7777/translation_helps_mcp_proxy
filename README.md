@@ -34,12 +34,20 @@ JSON-RPC 2.0   JSON-RPC 2.0    API endpoints
 ```
 mcp-proxy/
 ├── mcp_proxy_server.py         # Main proxy server
-├── test_mcp_proxy.py          # Comprehensive test suite (4/4 passing)
-├── requirements.txt           # Python dependencies 
-├── setup.sh / setup.bat       # Cross-platform setup scripts
-├── README.md                  # This file
-├── CORRECT_mcp_config.json    # Example MCP client configuration
-└── venv/                      # Virtual environment (created by setup)
+├── test_mcp_proxy.py          # Legacy test suite (kept for reference)
+├── tests/                     # Modern pytest test suite
+│   ├── __init__.py           # Package initialization
+│   ├── conftest.py           # Shared test fixtures
+│   ├── test_upstream_connectivity.py  # Upstream connection tests
+│   ├── test_mcp_protocol.py          # MCP protocol tests
+│   ├── test_tool_execution.py        # Tool execution tests
+│   └── test_stdio_workflow.py        # End-to-end workflow tests
+├── pytest.ini               # Pytest configuration
+├── requirements.txt          # Python dependencies (includes pytest)
+├── setup.sh / setup.bat      # Cross-platform setup scripts
+├── README.md                 # This file
+├── CORRECT_mcp_config.json   # Example MCP client configuration
+└── venv/                     # Virtual environment (created by setup)
 ```
 
 ## ⚡ Quick Start
@@ -67,7 +75,10 @@ python3 -m venv venv
 # Install dependencies
 pip install -r requirements.txt
 
-# Test the server
+# Test the server (pytest - recommended)
+pytest
+
+# Or legacy test (still available)
 python test_mcp_proxy.py
 
 # Run the server
@@ -78,35 +89,64 @@ python mcp_proxy_server.py
 
 ## 🧪 Testing
 
-### Comprehensive Test Suite
+### Modern pytest Test Suite (Recommended)
 Run all tests:
 ```bash
-# Option 1: Direct path to venv Python
-./venv/bin/python test_mcp_proxy.py
-
-# Option 2: Activate venv first (recommended)
+# Activate venv first (REQUIRED)
 . venv/bin/activate  # Use dot if 'source' doesn't work
+
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test files
+pytest tests/test_upstream_connectivity.py
+pytest tests/test_tool_execution.py
+
+# Run specific test functions
+pytest tests/test_stdio_workflow.py::test_stdio_workflow
+
+# Run tests in parallel (faster)
+pytest -n auto
+```
+
+### Legacy Test Suite (Available for Reference)
+```bash
+# Original comprehensive test (still works)
+. venv/bin/activate
 python test_mcp_proxy.py
 ```
 
-**Test Coverage**:
+**Test Coverage** (Both Suites):
 1. **Upstream Connectivity** ✅ - Verifies connection and tool discovery
-2. **MCP Protocol** ✅ - Tests JSON-RPC 2.0 initialization  
+2. **MCP Protocol** ✅ - Tests JSON-RPC 2.0 initialization
 3. **Tool Execution** ✅ - Validates tool calls including fetch_scripture
 4. **Stdio MCP Workflow** ✅ - Complete end-to-end John 3:16 test
 
-**Expected Output**:
+**pytest Expected Output**:
 ```
-🧪 MCP Proxy Server - Comprehensive Test Suite
-============================================================
-✅ PASS | Upstream Connectivity
-✅ PASS | MCP Protocol  
-✅ PASS | Tool Execution
-✅ PASS | Stdio MCP Workflow
+========================= test session starts =========================
+collected 8 items
 
-Results: 4/4 tests passed
-🎉 ALL TESTS PASSED! MCP Proxy Server is fully functional.
+tests/test_upstream_connectivity.py::test_upstream_connectivity PASSED
+tests/test_upstream_connectivity.py::test_tools_list_format PASSED
+tests/test_mcp_protocol.py::test_mcp_protocol_initialization PASSED
+tests/test_mcp_protocol.py::test_mcp_response_format PASSED
+tests/test_tool_execution.py::test_tool_execution PASSED
+tests/test_tool_execution.py::test_get_system_prompt_tool PASSED
+tests/test_tool_execution.py::test_fetch_scripture_tool PASSED
+tests/test_stdio_workflow.py::test_stdio_workflow PASSED
+
+========================= 8 passed in X.XXs =========================
 ```
+
+### pytest Benefits
+- **Individual Test Execution**: Run specific tests for focused debugging
+- **Parallel Execution**: Faster test runs with `-n auto`
+- **Better Output**: Cleaner, more detailed test reports
+- **Context Efficiency**: Individual test files are 40-160 lines vs 418 lines
 
 ## 🚀 Usage
 
@@ -259,7 +299,7 @@ typing-extensions>=4.0.0   # Type hints support
 
 ### Future Enhancements
 Potential improvements for advanced use cases:
-- [ ] Convert to pytest-based test suite for better CI/CD integration
+- [x] Convert to pytest-based test suite for better CI/CD integration
 - [ ] Add response caching for frequently called tools
 - [ ] Support for additional MCP features (resources, prompts)
 - [ ] Metrics and monitoring capabilities
