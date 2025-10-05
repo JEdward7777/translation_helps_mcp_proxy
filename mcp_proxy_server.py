@@ -73,8 +73,13 @@ class MCPProxyServer:
                 logger.info(f"Successfully loaded {len(tools)} tools from upstream")
                 return tools
                 
+            except asyncio.CancelledError:
+                logger.info("list_tools cancelled")
+                raise
             except Exception as e:
                 logger.error(f"Error listing tools: {e}")
+                import traceback
+                logger.error(f"list_tools traceback: {traceback.format_exc()}")
                 return []
         
         @self.server.call_tool()
@@ -130,8 +135,13 @@ class MCPProxyServer:
                     result_text = json.dumps(response, indent=2)
                     return [TextContent(type="text", text=result_text)]
                     
+            except asyncio.CancelledError:
+                logger.info(f"call_tool {name} cancelled")
+                raise
             except Exception as e:
                 logger.error(f"Error calling tool {name}: {e}")
+                import traceback
+                logger.error(f"call_tool {name} traceback: {traceback.format_exc()}")
                 return [TextContent(type="text", text=f"Error calling tool {name}: {str(e)}")]
     
     async def _call_upstream(self, method: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -247,29 +257,39 @@ async def main():
     # Create the proxy server
     proxy = MCPProxyServer(upstream_url=args.upstream_url)
     
-    # Test connection
-    await proxy.test_connection()
-    
-    # Create initialization options
-    init_options = InitializationOptions(
-        server_name="translation-helps-mcp-proxy",  # Match the name passed to Server()
-        server_version="1.0.0",  # Set server version
-        capabilities=proxy.server.get_capabilities(
-            notification_options=NotificationOptions(),  # Use defaults
-            experimental_capabilities={},  # No experimental capabilities needed
-        ),
-    )
-    
-    # Run the MCP server using stdio
-    logger.info("Starting MCP proxy server...")
     try:
+        # Test connection
+        await proxy.test_connection()
+        
+        # Create initialization options
+        init_options = InitializationOptions(
+            server_name="translation-helps-mcp-proxy",  # Match the name passed to Server()
+            server_version="1.0.0",  # Set server version
+            capabilities=proxy.server.get_capabilities(
+                notification_options=NotificationOptions(),  # Use defaults
+                experimental_capabilities={},  # No experimental capabilities needed
+            ),
+        )
+        
+        # Run the MCP server using stdio
+        logger.info("Starting MCP proxy server...")
         async with stdio_server() as (read_stream, write_stream):
             await proxy.server.run(read_stream, write_stream, init_options)
+            
+    except asyncio.CancelledError:
+        logger.info("Server cancelled, shutting down gracefully")
+        raise
     except Exception as e:
         logger.error(f"Error running MCP server: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise
     finally:
-        await proxy.client.aclose()
+        try:
+            if not proxy.client.is_closed:
+                await proxy.client.aclose()
+        except Exception as e:
+            logger.warning(f"Error closing HTTP client: {e}")
 
 if __name__ == "__main__":
     try:
