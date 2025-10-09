@@ -125,6 +125,51 @@ class MCPProxyServer:
                     else:
                         return [TextContent(type="text", text="No scripture text found")]
                 
+                elif "notes" in response or "verseNotes" in response or "items" in response:
+                    # Translation notes endpoint format
+                    notes = response.get("notes") or response.get("verseNotes") or response.get("items", [])
+                    if notes:
+                        formatted_text = f"Translation Notes for {arguments.get('reference', 'Reference')}:\n\n"
+                        for i, note in enumerate(notes):
+                            note_content = note.get("Note") or note.get("note") or note.get("text") or note.get("content") or str(note)
+                            formatted_text += f"{i + 1}. {note_content}\n\n"
+                        return [TextContent(type="text", text=formatted_text)]
+                    else:
+                        return [TextContent(type="text", text="No translation notes found for this reference.")]
+                
+                elif "words" in response:
+                    # Translation words endpoint format
+                    words = response["words"]
+                    if words:
+                        formatted_text = f"Translation Words for {arguments.get('reference', 'Reference')}:\n\n"
+                        for word in words:
+                            term = word.get("term") or word.get("name") or "Unknown Term"
+                            definition = word.get("definition") or word.get("content") or "No definition available"
+                            formatted_text += f"**{term}**\n{definition}\n\n"
+                        return [TextContent(type="text", text=formatted_text)]
+                    else:
+                        return [TextContent(type="text", text="No translation words found for this reference.")]
+                
+                elif "term" in response and "definition" in response:
+                    # Single translation word format
+                    term = response["term"]
+                    definition = response["definition"]
+                    formatted_text = f"**{term}**\n{definition}"
+                    return [TextContent(type="text", text=formatted_text)]
+                
+                elif "questions" in response:
+                    # Translation questions endpoint format
+                    questions = response["questions"]
+                    if questions:
+                        formatted_text = f"Translation Questions for {arguments.get('reference', 'Reference')}:\n\n"
+                        for i, q in enumerate(questions):
+                            question = q.get("question") or q.get("Question") or "No question"
+                            answer = q.get("answer") or q.get("Answer") or "No answer"
+                            formatted_text += f"Q{i + 1}: {question}\nA: {answer}\n\n"
+                        return [TextContent(type="text", text=formatted_text)]
+                    else:
+                        return [TextContent(type="text", text="No translation questions found for this reference.")]
+                
                 elif "result" in response:
                     # Upstream returns wrapped result
                     result_text = json.dumps(response["result"], indent=2) if isinstance(response["result"], dict) else str(response["result"])
@@ -157,9 +202,10 @@ class MCPProxyServer:
                 tool_args = params.get("arguments", {})
                 
                 # Route to the specific tool endpoint
+                base_url = self.upstream_url.replace("/api/mcp", "")
+                
                 if tool_name == "fetch_scripture":
                     # Use the direct API endpoint for fetch_scripture
-                    base_url = self.upstream_url.replace("/api/mcp", "")
                     api_url = f"{base_url}/api/fetch-scripture"
                     
                     # Convert arguments to query parameters
@@ -170,6 +216,95 @@ class MCPProxyServer:
                         query_params["language"] = tool_args["language"]
                     if "organization" in tool_args:
                         query_params["organization"] = tool_args["organization"]
+                    
+                    response = await self.client.get(api_url, params=query_params)
+                    
+                elif tool_name == "fetch_translation_notes":
+                    # Route to translation-notes endpoint
+                    api_url = f"{base_url}/api/translation-notes"
+                    
+                    query_params = {}
+                    if "reference" in tool_args:
+                        query_params["reference"] = tool_args["reference"]
+                    if "language" in tool_args:
+                        query_params["language"] = tool_args["language"]
+                    if "organization" in tool_args:
+                        query_params["organization"] = tool_args["organization"]
+                    
+                    response = await self.client.get(api_url, params=query_params)
+                    
+                elif tool_name == "fetch_translation_questions":
+                    # Route to translation-questions endpoint
+                    api_url = f"{base_url}/api/translation-questions"
+                    
+                    query_params = {}
+                    if "reference" in tool_args:
+                        query_params["reference"] = tool_args["reference"]
+                    if "language" in tool_args:
+                        query_params["language"] = tool_args["language"]
+                    if "organization" in tool_args:
+                        query_params["organization"] = tool_args["organization"]
+                    
+                    response = await self.client.get(api_url, params=query_params)
+                    
+                elif tool_name == "get_translation_word" or tool_name == "fetch_translation_words":
+                    # Route to fetch-translation-words endpoint
+                    api_url = f"{base_url}/api/fetch-translation-words"
+                    
+                    query_params = {}
+                    # Handle both 'reference' and 'wordId' parameters
+                    if "reference" in tool_args:
+                        query_params["reference"] = tool_args["reference"]
+                    if "wordId" in tool_args:
+                        query_params["wordId"] = tool_args["wordId"]
+                    if "language" in tool_args:
+                        query_params["language"] = tool_args["language"]
+                    if "organization" in tool_args:
+                        query_params["organization"] = tool_args["organization"]
+                    
+                    response = await self.client.get(api_url, params=query_params)
+                    
+                elif tool_name == "browse_translation_words":
+                    # Route to browse-translation-words endpoint
+                    api_url = f"{base_url}/api/browse-translation-words"
+                    
+                    query_params = {}
+                    if "language" in tool_args:
+                        query_params["language"] = tool_args["language"]
+                    if "organization" in tool_args:
+                        query_params["organization"] = tool_args["organization"]
+                    if "category" in tool_args:
+                        query_params["category"] = tool_args["category"]
+                    if "search" in tool_args:
+                        query_params["search"] = tool_args["search"]
+                    if "limit" in tool_args:
+                        query_params["limit"] = tool_args["limit"]
+                    
+                    response = await self.client.get(api_url, params=query_params)
+                    
+                elif tool_name == "get_context":
+                    # Route to get-context endpoint
+                    api_url = f"{base_url}/api/get-context"
+                    
+                    query_params = {}
+                    if "reference" in tool_args:
+                        query_params["reference"] = tool_args["reference"]
+                    if "language" in tool_args:
+                        query_params["language"] = tool_args["language"]
+                    if "organization" in tool_args:
+                        query_params["organization"] = tool_args["organization"]
+                    
+                    response = await self.client.get(api_url, params=query_params)
+                    
+                elif tool_name == "extract_references":
+                    # Route to extract-references endpoint
+                    api_url = f"{base_url}/api/extract-references"
+                    
+                    query_params = {}
+                    if "text" in tool_args:
+                        query_params["text"] = tool_args["text"]
+                    if "includeContext" in tool_args:
+                        query_params["includeContext"] = tool_args["includeContext"]
                     
                     response = await self.client.get(api_url, params=query_params)
                     

@@ -192,7 +192,49 @@ python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp" --debu
 
 ### MCP Client Configuration
 
-**stdio MCP Server Configuration**:
+#### KiloCode Configuration (Recommended)
+
+**Step 1**: Find your absolute paths and set up the virtual environment:
+```bash
+# Navigate to your mcp-proxy directory (replace with your actual path)
+cd /absolute/path/to/your/translation-helps-mcp/mcp-proxy
+
+# Activate virtual environment
+. venv/bin/activate
+
+# Note these paths for the configuration
+pwd                # Current directory (use for 'cwd')
+which python       # Python executable path (use for 'command')
+```
+
+**Step 2**: Add this configuration to your KiloCode MCP settings JSON:
+```json
+{
+  "translation-helps-mcp-proxy": {
+    "command": "/absolute/path/to/your/translation-helps-mcp/mcp-proxy/venv/bin/python",
+    "args": ["mcp_proxy_server.py"],
+    "cwd": "/absolute/path/to/your/translation-helps-mcp/mcp-proxy",
+    "env": {
+      "PYTHONPATH": "/absolute/path/to/your/translation-helps-mcp/mcp-proxy"
+    }
+  }
+}
+```
+
+**Replace the paths above with your actual paths**:
+- Replace `/absolute/path/to/your/translation-helps-mcp/mcp-proxy` with your real directory path
+- The `command` should point to your venv's Python: `YOUR_PATH/venv/bin/python`
+- All three path fields should use the same base directory
+
+**Key Configuration Notes**:
+- **`command`**: Use the **venv Python executable** (not system python)
+- **`cwd`**: Absolute path to the mcp-proxy directory
+- **`env.PYTHONPATH`**: Ensures Python can find the modules
+- **Server name**: `translation-helps-mcp-proxy` (use this name in KiloCode)
+
+#### Alternative: Generic MCP Client Configuration
+
+For other MCP clients that don't support virtual environments well:
 ```json
 {
   "translation-helps-mcp-proxy": {
@@ -203,7 +245,40 @@ python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp" --debu
 }
 ```
 
-**Important**: Use absolute paths in `cwd` for MCP client compatibility.
+#### Verification Steps
+
+**Test the configuration**:
+1. Save the JSON configuration in KiloCode
+2. Restart KiloCode or reload MCP servers
+3. In KiloCode, verify the server appears in the MCP tools list
+4. Try calling a tool like `fetch_scripture` with `{"reference": "John 3:16"}`
+
+**Expected behavior**:
+- Server should connect without errors
+- 12 tools should be available
+- `fetch_scripture` should return John 3:16 text
+- `fetch_translation_notes` should return translation notes
+
+#### Troubleshooting KiloCode Integration
+
+**If the server doesn't start**:
+```bash
+# Test manually first (replace with your actual path)
+cd /absolute/path/to/your/translation-helps-mcp/mcp-proxy
+. venv/bin/activate
+python mcp_proxy_server.py --debug
+```
+
+**Common issues**:
+- **Wrong Python path**: Ensure you're using `venv/bin/python`, not system python
+- **Missing dependencies**: Run `pip install -r requirements.txt` in the venv
+- **Path issues**: Use absolute paths for all directory references
+- **Permissions**: Ensure the venv directory is readable
+
+**Debug configuration in KiloCode**:
+- Check KiloCode's MCP server logs for connection errors
+- Verify the server name matches exactly (`translation-helps-mcp-proxy`)
+- Ensure no other MCP servers are using the same name
 
 ## 🛠️ Available Tools (12 Total)
 
