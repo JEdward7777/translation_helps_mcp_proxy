@@ -27,8 +27,12 @@ logger = logging.getLogger(__name__)
 class MCPProxyServer:
     """Proxy server that translates between proper MCP and the broken upstream server."""
     
-    def __init__(self, upstream_url: str = "https://translation-helps-mcp.pages.dev/api/mcp", verify_ssl: bool = False):
+    def __init__(self, upstream_url: str = "https://translation-helps-mcp.pages.dev/api/mcp",
+                 verify_ssl: bool = False, enabled_tools: Optional[list[str]] = None):
         self.upstream_url = upstream_url
+        self.enabled_tools = enabled_tools  # None means all tools enabled
+        self._upstream_tools = None  # Cache for upstream tools
+        
         # Initialize server with proper name
         self.server = Server("translation-helps-mcp-proxy")
         self.client = httpx.AsyncClient(timeout=30.0, verify=verify_ssl)
@@ -42,35 +46,71 @@ class MCPProxyServer:
         # Register handlers
         self._register_handlers()
     
+    async def _validate_enabled_tools(self, upstream_tools: list[dict]):
+        """Validate that all enabled tools exist in upstream server."""
+        if self.enabled_tools is None:
+            return
+            
+        upstream_tool_names = {tool['name'] for tool in upstream_tools}
+        
+        # Check for unknown tools
+        unknown_tools = set(self.enabled_tools) - upstream_tool_names
+        if unknown_tools:
+            raise ValueError(f"Unknown tools specified: {', '.join(unknown_tools)}")
+    
+    async def _get_filtered_tools(self) -> list[Tool]:
+        """Get filtered list of tools based on enabled_tools."""
+        # Get all upstream tools
+        upstream_response = await self._call_upstream('tools/list', {})
+        if not upstream_response or 'tools' not in upstream_response:
+            return []
+            
+        upstream_tools = upstream_response['tools']
+        
+        # Validate enabled tools on first call
+        await self._validate_enabled_tools(upstream_tools)
+            
+        # Convert to Tool objects and filter
+        tools = []
+        for tool_data in upstream_tools:
+            # Skip if tool filtering is enabled and this tool is not in the list
+            if self.enabled_tools is not None and tool_data['name'] not in self.enabled_tools:
+                continue
+                
+            try:
+                tool = Tool(
+                    name=tool_data["name"],
+                    description=tool_data["description"],
+                    inputSchema=tool_data.get("inputSchema", {})
+                )
+                tools.append(tool)
+            except Exception as e:
+                logger.error(f"Error parsing tool {tool_data.get('name', 'unknown')}: {e}")
+                continue
+                
+        return tools
+    
+    async def _is_tool_enabled(self, tool_name: str) -> bool:
+        """Check if a specific tool is enabled."""
+        if self.enabled_tools is None:
+            return True  # All tools enabled by default
+        return tool_name in self.enabled_tools
+    
     def _register_handlers(self):
         """Register all the MCP method handlers."""
         
         @self.server.list_tools()
         async def list_tools() -> list[Tool]:
-            """List available tools from the upstream server."""
+            """List available tools from the upstream server, filtered by enabled_tools."""
             try:
-                # Call upstream server's tools/list method
-                response = await self._call_upstream("tools/list", {})
-                
-                if not response or "tools" not in response:
-                    logger.warning("No tools found in upstream response")
-                    return []
-                
-                # Convert upstream tool format to proper MCP Tool objects
-                tools = []
-                for tool_data in response["tools"]:
-                    try:
-                        tool = Tool(
-                            name=tool_data["name"],
-                            description=tool_data["description"],
-                            inputSchema=tool_data.get("inputSchema", {})
-                        )
-                        tools.append(tool)
-                    except Exception as e:
-                        logger.error(f"Error parsing tool {tool_data.get('name', 'unknown')}: {e}")
-                        continue
+                # Use filtered tools instead of all upstream tools
+                tools = await self._get_filtered_tools()
                 
                 logger.info(f"Successfully loaded {len(tools)} tools from upstream")
+                if self.enabled_tools is not None:
+                    logger.info(f"Tool filtering active: {len(tools)} of total tools enabled")
+                    logger.info(f"Enabled tools: {[tool.name for tool in tools]}")
+                
                 return tools
                 
             except asyncio.CancelledError:
@@ -87,6 +127,11 @@ class MCPProxyServer:
             """Call a tool on the upstream server."""
             try:
                 logger.info(f"Calling tool: {name} with args: {arguments}")
+                
+                # Check if tool is enabled
+                if not await self._is_tool_enabled(name):
+                    logger.warning(f"Tool {name} is disabled by configuration")
+                    return [TextContent(type="text", text=f"Tool '{name}' is disabled. Enable it with --enabled-tools option.")]
                 
                 # Call upstream server's tools/call method
                 response = await self._call_upstream("tools/call", {
@@ -383,14 +428,54 @@ async def main():
         action="store_true",
         help="Enable debug logging"
     )
+    parser.add_argument(
+        "--enabled-tools",
+        type=str,
+        help="Comma-separated list of tools to enable (default: all tools enabled)"
+    )
+    parser.add_argument(
+        "--list-tools",
+        action="store_true",
+        help="List all available tools from upstream server and exit"
+    )
     
     args = parser.parse_args()
+    
+    # Handle --list-tools option
+    if args.list_tools:
+        print("📋 Discovering available tools from upstream server...")
+        temp_proxy = MCPProxyServer(upstream_url=args.upstream_url, verify_ssl=False)
+        try:
+            upstream_response = await temp_proxy._call_upstream('tools/list', {})
+            if upstream_response and 'tools' in upstream_response:
+                tools = upstream_response['tools']
+                print(f"\n✅ Found {len(tools)} available tools:\n")
+                for i, tool in enumerate(tools, 1):
+                    print(f"{i:2d}. {tool['name']:<25} - {tool['description']}")
+                print(f"\n💡 Usage: --enabled-tools \"tool1,tool2,tool3\"")
+                print(f"   Example: --enabled-tools \"fetch_scripture,fetch_translation_notes\"")
+            else:
+                print("❌ Unable to discover tools from upstream server")
+                sys.exit(1)
+        except Exception as e:
+            print(f"❌ Error discovering tools: {e}")
+            sys.exit(1)
+        finally:
+            if not temp_proxy.client.is_closed:
+                await temp_proxy.client.aclose()
+        sys.exit(0)
     
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     
+    # Parse enabled tools
+    enabled_tools = None
+    if args.enabled_tools:
+        enabled_tools = [tool.strip() for tool in args.enabled_tools.split(',')]
+        logger.info(f"Tool filtering enabled: {enabled_tools}")
+    
     # Create the proxy server
-    proxy = MCPProxyServer(upstream_url=args.upstream_url)
+    proxy = MCPProxyServer(upstream_url=args.upstream_url, enabled_tools=enabled_tools)
     
     try:
         # Test connection

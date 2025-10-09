@@ -12,7 +12,7 @@ A Python **stdio MCP server** that bridges MCP clients with the translation-help
 - **Stdio Protocol**: ✅ Complete MCP stdio workflow operational
 - **Error Handling**: ✅ Graceful error handling and cleanup
 
-**Test Results**: **16/16 comprehensive tests passing** (100% operational)
+**Test Results**: **37/37 comprehensive tests passing** (100% operational)
 
 ## 🔧 Technical Architecture
 
@@ -34,8 +34,7 @@ JSON-RPC 2.0   JSON-RPC 2.0    API endpoints
 ```
 mcp-proxy/
 ├── mcp_proxy_server.py         # Main proxy server
-├── test_mcp_proxy.py          # Legacy test suite (kept for reference)
-├── tests/                     # Modern pytest test suite
+├── tests/                     # Comprehensive pytest test suite (37 tests)
 │   ├── __init__.py           # Package initialization
 │   ├── conftest.py           # Shared test fixtures
 │   ├── test_upstream_connectivity.py  # Upstream connection tests
@@ -77,11 +76,8 @@ python3 -m venv venv
 # Install dependencies
 pip install -r requirements.txt
 
-# Test the server (pytest - recommended)
+# Test the server
 pytest
-
-# Or legacy test (still available)
-python test_mcp_proxy.py
 
 # Run the server
 python mcp_proxy_server.py
@@ -108,24 +104,60 @@ pytest tests/test_upstream_connectivity.py
 pytest tests/test_tool_execution.py
 pytest tests/test_fetch_translation_notes.py
 pytest tests/test_get_translation_word.py
+pytest tests/test_tool_filtering.py
 
 # Run specific test functions
 pytest tests/test_stdio_workflow.py::test_stdio_workflow
 pytest tests/test_fetch_translation_notes.py::test_fetch_translation_notes_basic
 pytest tests/test_get_translation_word.py::test_get_translation_word_basic
+pytest tests/test_tool_filtering.py::test_tool_filtering_specific_tools
 
 # Run tests in parallel (faster)
 pytest -n auto
+
+# Run comprehensive test suite (all tests)
+pytest tests/ -v
+
+# Run all tool-specific tests
+pytest tests/test_fetch_translation_notes.py tests/test_get_translation_word.py tests/test_tool_filtering.py -v
 ```
 
-### Legacy Test Suite (Available for Reference)
+### 🧪 Comprehensive Test Suite
+
+**Total Test Coverage**: **37 test cases** across **6 test files**
+
 ```bash
-# Original comprehensive test (still works)
+# Run all tests with detailed output
 . venv/bin/activate
-python test_mcp_proxy.py
+pytest tests/ -v
+
+# Expected output summary:
+# tests/test_upstream_connectivity.py: 2 tests ✅
+# tests/test_mcp_protocol.py: 2 tests ✅
+# tests/test_tool_execution.py: 4 tests ✅
+# tests/test_stdio_workflow.py: 2 tests ✅
+# tests/test_fetch_translation_notes.py: 7 tests ✅
+# tests/test_get_translation_word.py: 9 tests ✅
+# tests/test_tool_filtering.py: 9 tests ✅
+# tests/test_strict_translation_notes.py: 2 tests ✅
+# = 37 tests total
 ```
 
-**Test Coverage** (Both Suites):
+**Test Categories:**
+- **Core Infrastructure** (8 tests) - Protocol, connectivity, basic tool execution
+- **Translation Notes** (9 tests) - Complete fetch_translation_notes validation + strict tests
+- **Translation Words** (9 tests) - Complete get_translation_word validation
+- **Tool Filtering** (9 tests) - Safety controls and rollout management
+- **Upstream Connectivity** (2 tests) - Connection and tool discovery validation
+
+### Simple Test Execution
+```bash
+# Just run pytest - discovers and runs all 37 tests automatically
+. venv/bin/activate
+pytest
+```
+
+**Test Coverage**:
 1. **Upstream Connectivity** ✅ - Verifies connection and tool discovery
 2. **MCP Protocol** ✅ - Tests JSON-RPC 2.0 initialization
 3. **Tool Execution** ✅ - Validates tool calls including fetch_scripture
@@ -186,8 +218,100 @@ python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp"
 # Debug mode (detailed logging)
 python mcp_proxy_server.py --debug
 
-# Combined
-python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp" --debug
+# Tool filtering (controlled rollout)
+python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes"
+
+# Enable only safe, tested tools
+python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
+
+# Combined options
+python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp" --debug --enabled-tools "fetch_scripture,fetch_translation_notes"
+```
+
+### 🛡️ Tool Filtering for Controlled Rollout
+
+**NEW FEATURE**: Control which MCP tools are available for enhanced safety during testing:
+
+```bash
+# FIRST: Discover all available tools
+python mcp_proxy_server.py --list-tools
+
+# Enable all tools (default behavior)
+python mcp_proxy_server.py
+
+# Enable only specific tools (comma-separated, no spaces around commas)
+python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes"
+
+# Enable only fully tested tools
+python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
+
+# Disable all tools (useful for testing)
+python mcp_proxy_server.py --enabled-tools ""
+```
+
+### 📋 Tool Discovery
+
+**List all available tools** before configuring:
+```bash
+# Discover what tools are available from upstream
+. venv/bin/activate
+python mcp_proxy_server.py --list-tools
+```
+
+**Example output:**
+```
+📋 Discovering available tools from upstream server...
+
+✅ Found 12 available tools:
+
+ 1. get_system_prompt         - Get the complete system prompt and constraints
+ 2. fetch_scripture           - Fetch Bible scripture text for a specific reference
+ 3. fetch_translation_notes   - Fetch translation notes for a specific Bible reference
+ 4. get_languages             - Get available languages for translation resources
+ 5. fetch_translation_questions - Fetch translation questions for a specific Bible reference
+ 6. browse_translation_words  - Browse and search translation words by category or term
+ 7. get_context               - Get contextual information for a Bible reference
+ 8. extract_references        - Extract and parse Bible references from text
+ 9. fetch_resources           - Fetch multiple types of translation resources for a reference
+10. get_words_for_reference   - Get translation words specifically linked to a Bible reference
+11. get_translation_word      - Get translation words linked to a specific Bible reference
+12. search_resources          - Search across multiple resource types for content
+
+💡 Usage: --enabled-tools "tool1,tool2,tool3"
+   Example: --enabled-tools "fetch_scripture,fetch_translation_notes"
+```
+
+**💡 Recommended Workflow:**
+1. Run `--list-tools` to see all available tools
+2. Start with verified tools: `--enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"`
+3. Test each new tool individually before adding to your enabled list
+4. Gradually expand your enabled tools as you verify each one works
+
+**Key Features:**
+- **Safe rollout**: Only enable tools you've verified work correctly
+- **Invalid tool detection**: Server will error if you specify non-existent tools
+- **Case-sensitive**: Tool names must match exactly (e.g., `fetch_scripture` not `FETCH_SCRIPTURE`)
+- **No whitespace**: Use `"tool1,tool2"` not `"tool1, tool2"`
+
+**Available Tools for Filtering:**
+```
+fetch_scripture             ✅ Verified working
+fetch_translation_notes     ✅ Verified working
+get_system_prompt          ✅ Verified working
+fetch_translation_questions 🔄 Needs verification
+browse_translation_words   🔄 Needs verification
+get_translation_word       🔄 Needs verification
+get_words_for_reference    🔄 Needs verification
+get_context                🔄 Needs verification
+extract_references         🔄 Needs verification
+fetch_resources            🔄 Needs verification
+search_resources           🔄 Needs verification
+get_languages              🔄 Needs verification
+```
+
+**Example Safe Configuration (Only Verified Tools):**
+```bash
+python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
 ```
 
 ### MCP Client Configuration
