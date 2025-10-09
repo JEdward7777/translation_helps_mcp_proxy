@@ -12,7 +12,7 @@ A Python **stdio MCP server** that bridges MCP clients with the translation-help
 - **Stdio Protocol**: ✅ Complete MCP stdio workflow operational
 - **Error Handling**: ✅ Graceful error handling and cleanup
 
-**Test Results**: **4/4 comprehensive tests passing** (100% operational)
+**Test Results**: **16/16 comprehensive tests passing** (100% operational)
 
 ## 🔧 Technical Architecture
 
@@ -41,7 +41,9 @@ mcp-proxy/
 │   ├── test_upstream_connectivity.py  # Upstream connection tests
 │   ├── test_mcp_protocol.py          # MCP protocol tests
 │   ├── test_tool_execution.py        # Tool execution tests
-│   └── test_stdio_workflow.py        # End-to-end workflow tests
+│   ├── test_stdio_workflow.py        # End-to-end workflow tests
+│   ├── test_fetch_translation_notes.py # Translation notes tool tests
+│   └── test_get_translation_word.py    # Translation word tool tests
 ├── pytest.ini               # Pytest configuration
 ├── requirements.txt          # Python dependencies (includes pytest)
 ├── setup.sh / setup.bat      # Cross-platform setup scripts
@@ -104,9 +106,13 @@ pytest -v
 # Run specific test files
 pytest tests/test_upstream_connectivity.py
 pytest tests/test_tool_execution.py
+pytest tests/test_fetch_translation_notes.py
+pytest tests/test_get_translation_word.py
 
 # Run specific test functions
 pytest tests/test_stdio_workflow.py::test_stdio_workflow
+pytest tests/test_fetch_translation_notes.py::test_fetch_translation_notes_basic
+pytest tests/test_get_translation_word.py::test_get_translation_word_basic
 
 # Run tests in parallel (faster)
 pytest -n auto
@@ -124,11 +130,13 @@ python test_mcp_proxy.py
 2. **MCP Protocol** ✅ - Tests JSON-RPC 2.0 initialization
 3. **Tool Execution** ✅ - Validates tool calls including fetch_scripture
 4. **Stdio MCP Workflow** ✅ - Complete end-to-end John 3:16 test
+5. **Translation Notes** ✅ - Tests fetch_translation_notes tool (7 test cases)
+6. **Translation Words** ✅ - Tests get_translation_word tool (9 test cases)
 
 **pytest Expected Output**:
 ```
 ========================= test session starts =========================
-collected 8 items
+collected 16 items
 
 tests/test_upstream_connectivity.py::test_upstream_connectivity PASSED
 tests/test_upstream_connectivity.py::test_tools_list_format PASSED
@@ -138,8 +146,16 @@ tests/test_tool_execution.py::test_tool_execution PASSED
 tests/test_tool_execution.py::test_get_system_prompt_tool PASSED
 tests/test_tool_execution.py::test_fetch_scripture_tool PASSED
 tests/test_stdio_workflow.py::test_stdio_workflow PASSED
+tests/test_fetch_translation_notes.py::test_fetch_translation_notes_basic PASSED
+tests/test_fetch_translation_notes.py::test_fetch_translation_notes_missing_reference PASSED
+tests/test_fetch_translation_notes.py::test_fetch_translation_notes_different_book PASSED
+tests/test_fetch_translation_notes.py::test_fetch_translation_notes_default_params PASSED
+tests/test_fetch_translation_notes.py::test_fetch_translation_notes_invalid_reference PASSED
+tests/test_fetch_translation_notes.py::test_fetch_translation_notes_response_structure PASSED
+tests/test_fetch_translation_notes.py::test_fetch_translation_notes_tool_integration PASSED
+tests/test_get_translation_word.py::test_get_translation_word_basic PASSED
 
-========================= 8 passed in X.XXs =========================
+========================= 16 passed in X.XXs =========================
 ```
 
 ### pytest Benefits
