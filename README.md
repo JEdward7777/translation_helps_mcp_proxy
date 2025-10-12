@@ -32,23 +32,30 @@ JSON-RPC 2.0   JSON-RPC 2.0    API endpoints
 ## 📁 Project Structure
 
 ```
-mcp-proxy/
-├── mcp_proxy_server.py         # Main proxy server
-├── tests/                     # Comprehensive pytest test suite (37 tests)
-│   ├── __init__.py           # Package initialization
-│   ├── conftest.py           # Shared test fixtures
+translation_helps_mcp_proxy/
+├── src/
+│   └── translation_helps_mcp_proxy/
+│       ├── __init__.py           # Package initialization
+│       ├── __main__.py           # Main entry point
+│       └── mcp_proxy_server.py   # Main proxy server
+├── tests/                        # Comprehensive pytest test suite (37 tests)
+│   ├── __init__.py              # Package initialization
+│   ├── conftest.py              # Shared test fixtures
 │   ├── test_upstream_connectivity.py  # Upstream connection tests
-│   ├── test_mcp_protocol.py          # MCP protocol tests
-│   ├── test_tool_execution.py        # Tool execution tests
-│   ├── test_stdio_workflow.py        # End-to-end workflow tests
+│   ├── test_mcp_protocol.py           # MCP protocol tests
+│   ├── test_tool_execution.py         # Tool execution tests
+│   ├── test_stdio_workflow.py         # End-to-end workflow tests
 │   ├── test_fetch_translation_notes.py # Translation notes tool tests
-│   └── test_get_translation_word.py    # Translation word tool tests
+│   ├── test_get_translation_word.py    # Translation word tool tests
+│   ├── test_tool_filtering.py          # Tool filtering tests
+│   └── test_strict_translation_notes.py # Strict translation notes tests
+├── pyproject.toml            # Python package configuration (uvx compatible)
 ├── pytest.ini               # Pytest configuration
 ├── requirements.txt          # Python dependencies (includes pytest)
 ├── setup.sh / setup.bat      # Cross-platform setup scripts
 ├── README.md                 # This file
 ├── CORRECT_mcp_config.json   # Example MCP client configuration
-└── venv/                     # Virtual environment (created by setup)
+└── .gitignore               # Git ignore rules
 ```
 
 ## ⚡ Quick Start
@@ -57,19 +64,19 @@ mcp-proxy/
 
 ```bash
 # Install and run with uvx (no local setup needed)
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git
 
 # Or install globally for repeated use
-uvx install git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+uvx install git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git
 translation-helps-mcp-proxy
 
 # With custom options
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy \
+uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git \
   --debug \
   --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
 
 # List available tools
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --list-tools
+uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git --list-tools
 ```
 
 **uvx Benefits:**
@@ -81,7 +88,9 @@ uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mc
 ### Local Development Setup
 
 ```bash
-cd mcp-proxy
+# Clone the repository
+git clone https://github.com/JEdward7777/translation_helps_mcp_proxy.git
+cd translation_helps_mcp_proxy
 
 # Linux/macOS
 ./setup.sh
@@ -219,7 +228,7 @@ tests/test_get_translation_word.py::test_get_translation_word_basic PASSED
 ### MCP Proxy Mode
 ```bash
 # Using uvx (recommended)
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git
 
 # Local development
 . venv/bin/activate
@@ -230,7 +239,7 @@ python -m src.translation_helps_mcp_proxy
 translation-helps-mcp-proxy
 
 # With options
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy \
+uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git \
   --debug \
   --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
 ```
@@ -258,7 +267,7 @@ translation-helps-mcp-proxy \
 **uvx Installation (Recommended)**:
 ```bash
 # Install globally on server
-uvx install git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+uvx install git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git
 
 # Run in production
 translation-helps-mcp-proxy --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
@@ -268,7 +277,7 @@ translation-helps-mcp-proxy --enabled-tools "fetch_scripture,fetch_translation_n
 ```dockerfile
 FROM python:3.11-slim
 RUN pip install uv
-RUN uvx install git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+RUN uvx install git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git
 CMD ["translation-helps-mcp-proxy"]
 ```
 
@@ -278,19 +287,19 @@ CMD ["translation-helps-mcp-proxy"]
 
 ```bash
 # FIRST: Discover all available tools
-python mcp_proxy_server.py --list-tools
+python -m src.translation_helps_mcp_proxy --list-tools
 
 # Enable all tools (default behavior)
-python mcp_proxy_server.py
+python -m src.translation_helps_mcp_proxy
 
 # Enable only specific tools (comma-separated, no spaces around commas)
-python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes"
+python -m src.translation_helps_mcp_proxy --enabled-tools "fetch_scripture,fetch_translation_notes"
 
 # Enable only fully tested tools
-python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
+python -m src.translation_helps_mcp_proxy --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
 
 # Disable all tools (useful for testing)
-python mcp_proxy_server.py --enabled-tools ""
+python -m src.translation_helps_mcp_proxy --enabled-tools ""
 ```
 
 ### 📋 Tool Discovery
@@ -299,7 +308,7 @@ python mcp_proxy_server.py --enabled-tools ""
 ```bash
 # Discover what tools are available from upstream
 . venv/bin/activate
-python mcp_proxy_server.py --list-tools
+python -m src.translation_helps_mcp_proxy --list-tools
 ```
 
 **Example output:**
@@ -374,7 +383,7 @@ get_languages              🔄 Needs verification
 
 **Example Safe Configuration (Only Verified Tools):**
 ```bash
-python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
+python -m src.translation_helps_mcp_proxy --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
 ```
 
 ### MCP Client Configuration
@@ -383,8 +392,8 @@ python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_no
 
 **Step 1**: Find your absolute paths and set up the virtual environment:
 ```bash
-# Navigate to your mcp-proxy directory (replace with your actual path)
-cd /absolute/path/to/your/translation-helps-mcp/mcp-proxy
+# Navigate to your translation_helps_mcp_proxy directory (replace with your actual path)
+cd /absolute/path/to/your/translation_helps_mcp_proxy
 
 # Activate virtual environment
 . venv/bin/activate
@@ -398,24 +407,24 @@ which python       # Python executable path (use for 'command')
 ```json
 {
   "translation-helps-mcp-proxy": {
-    "command": "/absolute/path/to/your/translation-helps-mcp/mcp-proxy/venv/bin/python",
-    "args": ["mcp_proxy_server.py"],
-    "cwd": "/absolute/path/to/your/translation-helps-mcp/mcp-proxy",
+    "command": "/absolute/path/to/your/translation_helps_mcp_proxy/venv/bin/python",
+    "args": ["-m", "src.translation_helps_mcp_proxy"],
+    "cwd": "/absolute/path/to/your/translation_helps_mcp_proxy",
     "env": {
-      "PYTHONPATH": "/absolute/path/to/your/translation-helps-mcp/mcp-proxy"
+      "PYTHONPATH": "/absolute/path/to/your/translation_helps_mcp_proxy"
     }
   }
 }
 ```
 
 **Replace the paths above with your actual paths**:
-- Replace `/absolute/path/to/your/translation-helps-mcp/mcp-proxy` with your real directory path
+- Replace `/absolute/path/to/your/translation_helps_mcp_proxy` with your real directory path
 - The `command` should point to your venv's Python: `YOUR_PATH/venv/bin/python`
 - All three path fields should use the same base directory
 
 **Key Configuration Notes**:
 - **`command`**: Use the **venv Python executable** (not system python)
-- **`cwd`**: Absolute path to the mcp-proxy directory
+- **`cwd`**: Absolute path to the translation_helps_mcp_proxy directory
 - **`env.PYTHONPATH`**: Ensures Python can find the modules
 - **Server name**: `translation-helps-mcp-proxy` (use this name in KiloCode)
 
@@ -426,8 +435,8 @@ For other MCP clients that don't support virtual environments well:
 {
   "translation-helps-mcp-proxy": {
     "command": "python",
-    "args": ["mcp_proxy_server.py"],
-    "cwd": "/absolute/path/to/mcp-proxy"
+    "args": ["-m", "src.translation_helps_mcp_proxy"],
+    "cwd": "/absolute/path/to/translation_helps_mcp_proxy"
   }
 }
 ```
@@ -451,9 +460,9 @@ For other MCP clients that don't support virtual environments well:
 **If the server doesn't start**:
 ```bash
 # Test manually first (replace with your actual path)
-cd /absolute/path/to/your/translation-helps-mcp/mcp-proxy
+cd /absolute/path/to/your/translation_helps_mcp_proxy
 . venv/bin/activate
-python mcp_proxy_server.py --debug
+python -m src.translation_helps_mcp_proxy --debug
 ```
 
 **Common issues**:
@@ -542,7 +551,7 @@ asyncio.run(test())
 # IMPORTANT: Activate venv first
 . venv/bin/activate
 
-python mcp_proxy_server.py --debug
+python -m src.translation_helps_mcp_proxy --debug
 ```
 Shows detailed upstream communication, response parsing, and error details.
 

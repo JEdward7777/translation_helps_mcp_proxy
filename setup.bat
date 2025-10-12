@@ -45,13 +45,13 @@ echo 1. Activate the virtual environment:
 echo    venv\Scripts\activate
 echo.
 echo 2. Run the proxy server:
-echo    python mcp_proxy_server.py
+echo    python -m src.translation_helps_mcp_proxy
 echo.
 echo 3. For debug mode:
-echo    python mcp_proxy_server.py --debug
+echo    python -m src.translation_helps_mcp_proxy --debug
 echo.
 echo 4. To use a different upstream URL:
-echo    python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp"
+echo    python -m src.translation_helps_mcp_proxy --upstream-url "http://localhost:5173/api/mcp"
 echo.
 echo For more information, see README.md
 pause
