@@ -2,7 +2,7 @@
 
 import pytest
 import asyncio
-from mcp_proxy_server import MCPProxyServer
+from translation_helps_mcp_proxy.mcp_proxy_server import MCPProxyServer
 
 
 @pytest.mark.asyncio
@@ -152,7 +152,8 @@ async def test_list_tools_command():
     from pathlib import Path
     
     # Test the --list-tools functionality
-    cmd = [sys.executable, "mcp_proxy_server.py", "--list-tools"]
+    package_dir = Path(__file__).parent.parent / "src" / "translation_helps_mcp_proxy"
+    cmd = [sys.executable, str(package_dir / "mcp_proxy_server.py"), "--list-tools"]
     
     try:
         result = subprocess.run(

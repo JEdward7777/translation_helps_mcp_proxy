@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "translation-helps-mcp-proxy"
 version = "1.0.0"
-description = "MCP proxy server for translation-helps-mcp with MCPO REST API integration"
+description = "MCP proxy server for translation-helps-mcp with uvx-compatible packaging"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -27,7 +27,6 @@ dependencies = [
     "mcp>=1.0.0",
     "httpx>=0.25.0",
     "typing-extensions>=4.0.0",
-    "mcpo>=0.0.1",
 ]
 
 [project.optional-dependencies]

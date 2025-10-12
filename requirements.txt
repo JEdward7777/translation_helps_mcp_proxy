@@ -13,9 +13,3 @@ pytest>=7.0.0
 pytest-asyncio>=0.21.0
 pytest-xdist>=3.0.0  # For parallel test execution
 pytest-timeout>=2.1.0  # For test timeouts
-
-# MCPO Integration dependencies
-mcpo>=0.0.1  # MCP-to-OpenAPI proxy server
-openai>=2.0.0  # OpenAI Python client for testing
-python-dotenv>=1.0.0  # Environment variable management
-requests>=2.32.0  # HTTP requests for endpoint testing

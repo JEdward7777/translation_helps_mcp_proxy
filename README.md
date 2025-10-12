@@ -1,6 +1,6 @@
 # Translation Helps MCP Proxy
 
-A Python **stdio MCP server** that bridges MCP clients with the translation-helps-mcp server, with optional **MCPO REST API integration**. This proxy handles JSON-RPC 2.0 formatting and protocol translation to make the upstream HTTP server fully compatible with MCP clients and REST APIs.
+A Python **stdio MCP server** that bridges MCP clients with the translation-helps-mcp server. This proxy handles JSON-RPC 2.0 formatting and protocol translation to make the upstream HTTP server fully compatible with MCP clients.
 
 ## 🎯 Current Status
 
@@ -56,16 +56,27 @@ mcp-proxy/
 ### Using uvx (Recommended - Zero Installation)
 
 ```bash
-# Run directly with uvx (no installation needed)
+# Install and run with uvx (no local setup needed)
 uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
 
-# Or install globally and run
+# Or install globally for repeated use
 uvx install git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
 translation-helps-mcp-proxy
 
-# Run with MCPO REST API integration
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --with-mcpo --port 8000 --api-key "your-openai-key"
+# With custom options
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy \
+  --debug \
+  --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
+
+# List available tools
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --list-tools
 ```
+
+**uvx Benefits:**
+- ⚡ **Zero setup** - No Python environment management needed
+- 🔄 **Always latest** - Automatically pulls latest version from git
+- 🧹 **Clean** - No local dependencies or virtual environments
+- 🚀 **Fast** - uvx handles all dependency management automatically
 
 ### Local Development Setup
 
@@ -205,7 +216,7 @@ tests/test_get_translation_word.py::test_get_translation_word_basic PASSED
 
 ## 🚀 Usage
 
-### Standard MCP Proxy Mode
+### MCP Proxy Mode
 ```bash
 # Using uvx (recommended)
 uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
@@ -214,35 +225,15 @@ uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mc
 . venv/bin/activate
 python -m src.translation_helps_mcp_proxy
 
-# With options
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --debug --enabled-tools "fetch_scripture,fetch_translation_notes"
-```
-
-### 🌐 MCPO REST API Mode (NEW!)
-Convert your MCP tools into REST API endpoints:
-
-```bash
-# Basic MCPO integration
-uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --with-mcpo --port 8000 --api-key "your-openai-key"
-
-# Local development with MCPO
+# Local development (after setup)
 . venv/bin/activate
-python -m src.translation_helps_mcp_proxy --with-mcpo --port 8000 --api-key "your-openai-key"
+translation-helps-mcp-proxy
 
-# Advanced MCPO options
+# With options
 uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy \
-  --with-mcpo \
-  --port 8000 \
-  --api-key "your-openai-key" \
-  --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt" \
-  --debug
+  --debug \
+  --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
 ```
-
-**MCPO Benefits:**
-- 🌐 **REST API endpoints** for all MCP tools
-- 📖 **Auto-generated OpenAPI docs** at `http://localhost:8000/docs`
-- 🔗 **OpenAI-compatible** endpoints for LLM integration
-- 🛡️ **Secure API key authentication**
 
 ### Advanced Options
 ```bash
@@ -260,6 +251,25 @@ translation-helps-mcp-proxy \
   --upstream-url "http://localhost:5173/api/mcp" \
   --debug \
   --enabled-tools "fetch_scripture,fetch_translation_notes"
+```
+
+### Production Deployment
+
+**uvx Installation (Recommended)**:
+```bash
+# Install globally on server
+uvx install git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+
+# Run in production
+translation-helps-mcp-proxy --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
+```
+
+**Docker Deployment**:
+```dockerfile
+FROM python:3.11-slim
+RUN pip install uv
+RUN uvx install git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+CMD ["translation-helps-mcp-proxy"]
 ```
 
 ### 🛡️ Tool Filtering for Controlled Rollout
@@ -315,88 +325,23 @@ python mcp_proxy_server.py --list-tools
    Example: --enabled-tools "fetch_scripture,fetch_translation_notes"
 ```
 
-## 🌐 MCPO Integration Features
+## 🔧 Integration with MCP Clients
 
-### What is MCPO?
-[MCPO](https://github.com/open-webui/mcpo) is a **MCP-to-OpenAPI proxy server** that converts MCP tools into REST API endpoints. This integration provides:
+The proxy is designed to work seamlessly with MCP clients like KiloCode, Claude Desktop, and other MCP-compatible tools. It provides a standard MCP stdio interface that any MCP client can connect to.
 
-- **🔗 REST API Access**: Call any MCP tool via standard HTTP requests
-- **📖 Interactive Documentation**: Auto-generated Swagger UI at `/docs`
-- **🤖 LLM Integration**: OpenAI-compatible endpoints for AI models
-- **🛡️ Authentication**: Secure API key-based access
-- **⚡ Zero Configuration**: Automatically discovers and exposes all MCP tools
-
-### MCPO Command Examples
-
-```bash
-# Start MCPO REST API server on port 8000
-translation-helps-mcp-proxy --with-mcpo --port 8000 --api-key "sk-your-openai-key"
-
-# Access the interactive docs
-open http://localhost:8000/docs
-
-# Call translation tools via REST API
-curl -X POST "http://localhost:8000/fetch_scripture" \
-  -H "Authorization: Bearer sk-your-openai-key" \
-  -H "Content-Type: application/json" \
-  -d '{"reference": "John 3:16"}'
-
-curl -X POST "http://localhost:8000/fetch_translation_notes" \
-  -H "Authorization: Bearer sk-your-openai-key" \
-  -H "Content-Type: application/json" \
-  -d '{"reference": "Matthew 5:3"}'
-```
-
-### Using with OpenAI API
-
-```python
-import openai
-
-# Configure OpenAI to use your MCPO server
-# MCPO provides a model path that automatically includes MCP tools
-client = openai.OpenAI(
-    api_key="sk-your-openai-key",
-    base_url="http://localhost:8000"
-)
-
-# The model path provided by MCPO automatically includes translation tools
-# No need to specify tools explicitly - they're "baked in" to the model
-response = client.chat.completions.create(
-    model="gpt-4-with-tools",  # MCPO provides this enhanced model path
-    messages=[
-        {"role": "user", "content": "What does John 3:16 say and what are the translation notes for it?"}
-    ]
-    # No tools parameter needed! MCPO automatically provides:
-    # - fetch_scripture
-    # - fetch_translation_notes
-    # - get_translation_word
-    # - All other MCP tools
-)
-
-print(response.choices[0].message.content)
-# The AI can automatically call translation tools as needed
-```
-
-**Key MCPO Benefits:**
-- 🎯 **Zero Tool Configuration**: Tools are automatically available to the model
-- 🔄 **Transparent Integration**: Client code remains unchanged
-- 🧠 **Enhanced Model**: AI gets translation capabilities without explicit tool management
-- 📚 **All 12 Tools Available**: Every MCP tool becomes part of the model's capabilities
-
-### Architecture Flow
+### Example Integration Workflow
 
 ```
-OpenAI Client → MCPO (Model + Tools) → MCP Proxy → Translation Helps Server
-     ↓              ↓                      ↓              ↓
-Simple Chat → Enhanced Model Path → JSON-RPC 2.0 → Bible Resources
+MCP Client → Translation Helps MCP Proxy → Translation Helps Server
+     ↓              ↓                         ↓
+JSON-RPC 2.0 → Protocol Translation → Bible Resources
 ```
 
 **How It Works:**
-1. **Client**: Makes normal OpenAI API calls to MCPO server
-2. **MCPO**: Provides an enhanced model path with built-in tool access
-3. **MCP Proxy**: Translates tool calls to the translation-helps server
-4. **Translation Server**: Returns Bible scripture, notes, and translation resources
-5. **AI Response**: Automatically includes retrieved translation data in natural language
+1. **MCP Client**: Makes standard MCP tool calls via stdio
+2. **MCP Proxy**: Translates requests to HTTP API calls
+3. **Translation Server**: Returns Bible scripture, notes, and translation resources
+4. **MCP Response**: Formats data for seamless client integration
 
 
 **💡 Recommended Workflow:**
