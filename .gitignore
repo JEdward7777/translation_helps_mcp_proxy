@@ -3,3 +3,9 @@ __pycache__/
 .env
 *.log
 .pytest_cache/
+
+# Packaging artifacts
+build/
+dist/
+*.egg-info/
+*.swp
