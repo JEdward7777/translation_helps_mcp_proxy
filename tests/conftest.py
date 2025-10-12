@@ -5,10 +5,10 @@ import pytest_asyncio
 from pathlib import Path
 import sys
 
-# Add parent directory to path so we can import mcp_proxy_server
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add src directory to path so we can import from the package
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from mcp_proxy_server import MCPProxyServer
+from translation_helps_mcp_proxy.mcp_proxy_server import MCPProxyServer
 
 
 @pytest_asyncio.fixture
@@ -26,7 +26,8 @@ async def proxy_server():
 @pytest.fixture
 def test_server_command():
     """Command to start the MCP server for subprocess tests."""
-    return [sys.executable, "mcp_proxy_server.py"]
+    package_dir = Path(__file__).parent.parent / "src" / "translation_helps_mcp_proxy"
+    return [sys.executable, str(package_dir / "mcp_proxy_server.py")]
 
 
 @pytest.fixture

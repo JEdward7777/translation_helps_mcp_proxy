@@ -1,6 +1,6 @@
-# MCP Proxy Server for Translation Helps
+# Translation Helps MCP Proxy
 
-A Python **stdio MCP server** that bridges MCP clients with the translation-helps-mcp server. This proxy handles JSON-RPC 2.0 formatting and protocol translation to make the upstream HTTP server fully compatible with MCP clients.
+A Python **stdio MCP server** that bridges MCP clients with the translation-helps-mcp server, with optional **MCPO REST API integration**. This proxy handles JSON-RPC 2.0 formatting and protocol translation to make the upstream HTTP server fully compatible with MCP clients and REST APIs.
 
 ## 🎯 Current Status
 
@@ -53,37 +53,44 @@ mcp-proxy/
 
 ## ⚡ Quick Start
 
-### Automated Setup
+### Using uvx (Recommended - Zero Installation)
+
+```bash
+# Run directly with uvx (no installation needed)
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+
+# Or install globally and run
+uvx install git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
+translation-helps-mcp-proxy
+
+# Run with MCPO REST API integration
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --with-mcpo --port 8000 --api-key "your-openai-key"
+```
+
+### Local Development Setup
+
 ```bash
 cd mcp-proxy
 
 # Linux/macOS
 ./setup.sh
 
-# Windows  
+# Windows
 setup.bat
-```
 
-### Manual Setup
-```bash
-# Create and activate virtual environment
+# Or manual setup
 python3 -m venv venv
-
-# Activate virtual environment (REQUIRED for all operations)
 . venv/bin/activate  # Linux/macOS (note: use dot, not 'source')
-# OR: venv\Scripts\activate  # Windows
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Test the server
-pytest
+# Test the package
+python -m src.translation_helps_mcp_proxy --help
 
-# Run the server
-python mcp_proxy_server.py
+# Run tests
+pytest
 ```
 
-**Important**: Always activate the virtual environment before running any commands. Use `. venv/bin/activate` (with dot) if `source` command is not available.
+**Important**: Always activate the virtual environment before running any commands when developing locally. Use `. venv/bin/activate` (with dot) if `source` command is not available.
 
 ## 🧪 Testing
 
@@ -198,34 +205,61 @@ tests/test_get_translation_word.py::test_get_translation_word_basic PASSED
 
 ## 🚀 Usage
 
-### Basic Usage
+### Standard MCP Proxy Mode
 ```bash
-# IMPORTANT: Always activate venv first
-. venv/bin/activate  # Use dot if 'source' doesn't work
+# Using uvx (recommended)
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy
 
-# Default: connects to https://translation-helps-mcp.pages.dev/api/mcp
-python mcp_proxy_server.py
+# Local development
+. venv/bin/activate
+python -m src.translation_helps_mcp_proxy
+
+# With options
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --debug --enabled-tools "fetch_scripture,fetch_translation_notes"
 ```
+
+### 🌐 MCPO REST API Mode (NEW!)
+Convert your MCP tools into REST API endpoints:
+
+```bash
+# Basic MCPO integration
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy --with-mcpo --port 8000 --api-key "your-openai-key"
+
+# Local development with MCPO
+. venv/bin/activate
+python -m src.translation_helps_mcp_proxy --with-mcpo --port 8000 --api-key "your-openai-key"
+
+# Advanced MCPO options
+uvx git+https://github.com/JEdward7777/translation-helps-mcp.git#subdirectory=mcp-proxy \
+  --with-mcpo \
+  --port 8000 \
+  --api-key "your-openai-key" \
+  --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt" \
+  --debug
+```
+
+**MCPO Benefits:**
+- 🌐 **REST API endpoints** for all MCP tools
+- 📖 **Auto-generated OpenAPI docs** at `http://localhost:8000/docs`
+- 🔗 **OpenAI-compatible** endpoints for LLM integration
+- 🛡️ **Secure API key authentication**
 
 ### Advanced Options
 ```bash
-# IMPORTANT: Ensure venv is activated first
-. venv/bin/activate
-
 # Different upstream URL
-python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp"
+translation-helps-mcp-proxy --upstream-url "http://localhost:5173/api/mcp"
 
 # Debug mode (detailed logging)
-python mcp_proxy_server.py --debug
+translation-helps-mcp-proxy --debug
 
 # Tool filtering (controlled rollout)
-python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes"
-
-# Enable only safe, tested tools
-python mcp_proxy_server.py --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
+translation-helps-mcp-proxy --enabled-tools "fetch_scripture,fetch_translation_notes"
 
 # Combined options
-python mcp_proxy_server.py --upstream-url "http://localhost:5173/api/mcp" --debug --enabled-tools "fetch_scripture,fetch_translation_notes"
+translation-helps-mcp-proxy \
+  --upstream-url "http://localhost:5173/api/mcp" \
+  --debug \
+  --enabled-tools "fetch_scripture,fetch_translation_notes"
 ```
 
 ### 🛡️ Tool Filtering for Controlled Rollout
@@ -280,6 +314,90 @@ python mcp_proxy_server.py --list-tools
 💡 Usage: --enabled-tools "tool1,tool2,tool3"
    Example: --enabled-tools "fetch_scripture,fetch_translation_notes"
 ```
+
+## 🌐 MCPO Integration Features
+
+### What is MCPO?
+[MCPO](https://github.com/open-webui/mcpo) is a **MCP-to-OpenAPI proxy server** that converts MCP tools into REST API endpoints. This integration provides:
+
+- **🔗 REST API Access**: Call any MCP tool via standard HTTP requests
+- **📖 Interactive Documentation**: Auto-generated Swagger UI at `/docs`
+- **🤖 LLM Integration**: OpenAI-compatible endpoints for AI models
+- **🛡️ Authentication**: Secure API key-based access
+- **⚡ Zero Configuration**: Automatically discovers and exposes all MCP tools
+
+### MCPO Command Examples
+
+```bash
+# Start MCPO REST API server on port 8000
+translation-helps-mcp-proxy --with-mcpo --port 8000 --api-key "sk-your-openai-key"
+
+# Access the interactive docs
+open http://localhost:8000/docs
+
+# Call translation tools via REST API
+curl -X POST "http://localhost:8000/fetch_scripture" \
+  -H "Authorization: Bearer sk-your-openai-key" \
+  -H "Content-Type: application/json" \
+  -d '{"reference": "John 3:16"}'
+
+curl -X POST "http://localhost:8000/fetch_translation_notes" \
+  -H "Authorization: Bearer sk-your-openai-key" \
+  -H "Content-Type: application/json" \
+  -d '{"reference": "Matthew 5:3"}'
+```
+
+### Using with OpenAI API
+
+```python
+import openai
+
+# Configure OpenAI to use your MCPO server
+# MCPO provides a model path that automatically includes MCP tools
+client = openai.OpenAI(
+    api_key="sk-your-openai-key",
+    base_url="http://localhost:8000"
+)
+
+# The model path provided by MCPO automatically includes translation tools
+# No need to specify tools explicitly - they're "baked in" to the model
+response = client.chat.completions.create(
+    model="gpt-4-with-tools",  # MCPO provides this enhanced model path
+    messages=[
+        {"role": "user", "content": "What does John 3:16 say and what are the translation notes for it?"}
+    ]
+    # No tools parameter needed! MCPO automatically provides:
+    # - fetch_scripture
+    # - fetch_translation_notes
+    # - get_translation_word
+    # - All other MCP tools
+)
+
+print(response.choices[0].message.content)
+# The AI can automatically call translation tools as needed
+```
+
+**Key MCPO Benefits:**
+- 🎯 **Zero Tool Configuration**: Tools are automatically available to the model
+- 🔄 **Transparent Integration**: Client code remains unchanged
+- 🧠 **Enhanced Model**: AI gets translation capabilities without explicit tool management
+- 📚 **All 12 Tools Available**: Every MCP tool becomes part of the model's capabilities
+
+### Architecture Flow
+
+```
+OpenAI Client → MCPO (Model + Tools) → MCP Proxy → Translation Helps Server
+     ↓              ↓                      ↓              ↓
+Simple Chat → Enhanced Model Path → JSON-RPC 2.0 → Bible Resources
+```
+
+**How It Works:**
+1. **Client**: Makes normal OpenAI API calls to MCPO server
+2. **MCPO**: Provides an enhanced model path with built-in tool access
+3. **MCP Proxy**: Translates tool calls to the translation-helps server
+4. **Translation Server**: Returns Bible scripture, notes, and translation resources
+5. **AI Response**: Automatically includes retrieved translation data in natural language
+
 
 **💡 Recommended Workflow:**
 1. Run `--list-tools` to see all available tools
