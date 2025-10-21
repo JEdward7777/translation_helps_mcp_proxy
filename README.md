@@ -6,6 +6,15 @@
 
 A Python **stdio MCP server** that bridges MCP clients with the translation-helps-mcp server. This proxy handles JSON-RPC 2.0 formatting and protocol translation to make the upstream HTTP server fully compatible with MCP clients.
 
+## 📚 Upstream Project
+
+This project is a wrapper around the [translation-helps-mcp](https://github.com/klappy/translation-helps-mcp) project, providing MCP (Model Context Protocol) compatibility for the upstream HTTP API.
+
+**Upstream Details:**
+- **Repository**: [https://github.com/klappy/translation-helps-mcp](https://github.com/klappy/translation-helps-mcp)
+- **Live Demo**: [https://translation-helps-mcp.pages.dev/](https://translation-helps-mcp.pages.dev/)
+- **Description**: "The Aqueduct - Stateless RAG High-performance API platform providing instant access to unfoldingWord translation resources with word-level alignment precision for Mother Tongue Translators worldwide."
+
 ## 🎯 Current Status
 
 **✅ PRODUCTION READY** - All functionality working as of October 2025
