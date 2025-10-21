@@ -1,3 +1,6 @@
+**WARNING: This project was vibe coded and there are a minimal number of MCP commands which have actually been completed. Do not be fooled by the overly optimistic automatic documentation.**
+
+
 # Translation Helps MCP Proxy
 
 A Python **stdio MCP server** that bridges MCP clients with the translation-helps-mcp server. This proxy handles JSON-RPC 2.0 formatting and protocol translation to make the upstream HTTP server fully compatible with MCP clients.
