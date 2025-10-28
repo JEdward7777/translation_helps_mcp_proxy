@@ -28,9 +28,11 @@ class MCPProxyServer:
     """Proxy server that translates between proper MCP and the broken upstream server."""
     
     def __init__(self, upstream_url: str = "https://translation-helps-mcp.pages.dev/api/mcp",
-                 verify_ssl: bool = False, enabled_tools: Optional[list[str]] = None):
+                 verify_ssl: bool = False, enabled_tools: Optional[list[str]] = None,
+                 hidden_params: Optional[list[str]] = None):
         self.upstream_url = upstream_url
         self.enabled_tools = enabled_tools  # None means all tools enabled
+        self.hidden_params = hidden_params  # None means no params hidden
         self._upstream_tools = None  # Cache for upstream tools
         
         # Initialize server with proper name
@@ -59,7 +61,7 @@ class MCPProxyServer:
             raise ValueError(f"Unknown tools specified: {', '.join(unknown_tools)}")
     
     async def _get_filtered_tools(self) -> list[Tool]:
-        """Get filtered list of tools based on enabled_tools."""
+        """Get filtered list of tools based on enabled_tools and hidden_params."""
         # Get all upstream tools
         upstream_response = await self._call_upstream('tools/list', {})
         if not upstream_response or 'tools' not in upstream_response:
@@ -78,10 +80,31 @@ class MCPProxyServer:
                 continue
                 
             try:
+                # Get the input schema
+                input_schema = tool_data.get("inputSchema", {}).copy()
+                
+                # Apply parameter hiding if configured
+                if self.hidden_params is not None and len(self.hidden_params) > 0:
+                    if 'properties' in input_schema:
+                        # Create a new properties dict without hidden params
+                        filtered_properties = {
+                            key: value for key, value in input_schema['properties'].items()
+                            if key not in self.hidden_params
+                        }
+                        input_schema['properties'] = filtered_properties
+                    
+                    # Also filter the required list
+                    if 'required' in input_schema:
+                        filtered_required = [
+                            param for param in input_schema['required']
+                            if param not in self.hidden_params
+                        ]
+                        input_schema['required'] = filtered_required
+                
                 tool = Tool(
                     name=tool_data["name"],
                     description=tool_data["description"],
-                    inputSchema=tool_data.get("inputSchema", {})
+                    inputSchema=input_schema
                 )
                 tools.append(tool)
             except Exception as e:
@@ -434,6 +457,11 @@ async def main():
         help="Comma-separated list of tools to enable (default: all tools enabled)"
     )
     parser.add_argument(
+        "--hide-params",
+        type=str,
+        help="Comma-separated list of parameters to hide from tool schemas (e.g., 'language,organization')"
+    )
+    parser.add_argument(
         "--list-tools",
         action="store_true",
         help="List all available tools from upstream server and exit"
@@ -474,8 +502,14 @@ async def main():
         enabled_tools = [tool.strip() for tool in args.enabled_tools.split(',')]
         logger.info(f"Tool filtering enabled: {enabled_tools}")
     
+    # Parse hidden params
+    hidden_params = None
+    if args.hide_params:
+        hidden_params = [param.strip() for param in args.hide_params.split(',')]
+        logger.info(f"Parameter hiding enabled: {hidden_params}")
+    
     # Create the proxy server
-    proxy = MCPProxyServer(upstream_url=args.upstream_url, enabled_tools=enabled_tools)
+    proxy = MCPProxyServer(upstream_url=args.upstream_url, enabled_tools=enabled_tools, hidden_params=hidden_params)
     
     try:
         # Test connection

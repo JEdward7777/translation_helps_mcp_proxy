@@ -88,6 +88,10 @@ uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git \
   --debug \
   --enabled-tools "fetch_scripture,fetch_translation_notes,get_system_prompt"
 
+# Hide problematic parameters from downstream tools
+uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git \
+  --hide-params "language,organization"
+
 # List available tools
 uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git --list-tools
 ```
@@ -159,16 +163,16 @@ pytest -n auto
 pytest tests/ -v
 
 # Run all tool-specific tests
-pytest tests/test_fetch_translation_notes.py tests/test_get_translation_word.py tests/test_tool_filtering.py -v
+pytest tests/test_fetch_translation_notes.py tests/test_get_translation_word.py tests/test_tool_filtering.py tests/test_parameter_hiding.py -v
 ```
 
 ### 🧪 Comprehensive Test Suite
 
-**Total Test Coverage**: **37 test cases** across **6 test files**
+**Total Test Coverage**: **43 test cases** across **7 test files**
 
 ```bash
 # Run all tests with detailed output
-. venv/bin/activate
+. .venv/bin/activate
 pytest tests/ -v
 
 # Expected output summary:
@@ -179,8 +183,9 @@ pytest tests/ -v
 # tests/test_fetch_translation_notes.py: 7 tests ✅
 # tests/test_get_translation_word.py: 9 tests ✅
 # tests/test_tool_filtering.py: 9 tests ✅
+# tests/test_parameter_hiding.py: 6 tests ✅
 # tests/test_strict_translation_notes.py: 2 tests ✅
-# = 37 tests total
+# = 43 tests total
 ```
 
 **Test Categories:**
@@ -188,6 +193,7 @@ pytest tests/ -v
 - **Translation Notes** (9 tests) - Complete fetch_translation_notes validation + strict tests
 - **Translation Words** (9 tests) - Complete get_translation_word validation
 - **Tool Filtering** (9 tests) - Safety controls and rollout management
+- **Parameter Hiding** (6 tests) - Parameter filtering for downstream compatibility
 - **Upstream Connectivity** (2 tests) - Connection and tool discovery validation
 
 ### Simple Test Execution
@@ -268,11 +274,15 @@ translation-helps-mcp-proxy --debug
 # Tool filtering (controlled rollout)
 translation-helps-mcp-proxy --enabled-tools "fetch_scripture,fetch_translation_notes"
 
+# Parameter hiding (hide specific parameters from tool schemas)
+translation-helps-mcp-proxy --hide-params "language,organization"
+
 # Combined options
 translation-helps-mcp-proxy \
   --upstream-url "http://localhost:5173/api/mcp" \
   --debug \
-  --enabled-tools "fetch_scripture,fetch_translation_notes"
+  --enabled-tools "fetch_scripture,fetch_translation_notes" \
+  --hide-params "language,organization"
 ```
 
 ### Production Deployment
@@ -314,6 +324,37 @@ python -m src.translation_helps_mcp_proxy --enabled-tools "fetch_scripture,fetch
 # Disable all tools (useful for testing)
 python -m src.translation_helps_mcp_proxy --enabled-tools ""
 ```
+
+### 🔒 Parameter Hiding for Downstream Compatibility
+
+**NEW FEATURE**: Hide specific parameters from tool schemas to solve downstream compatibility issues:
+
+```bash
+# Hide language and organization parameters from all tools
+python -m src.translation_helps_mcp_proxy --hide-params "language,organization"
+
+# Hide only specific parameters
+python -m src.translation_helps_mcp_proxy --hide-params "language"
+
+# Combine with tool filtering
+python -m src.translation_helps_mcp_proxy \
+  --enabled-tools "fetch_scripture,fetch_translation_notes" \
+  --hide-params "language,organization"
+```
+
+**Use Case**: When downstream tools provide invalid values for certain parameters (e.g., incorrect language codes), you can hide those parameters from the tool schema. This prevents the downstream tool from sending those parameters, allowing the upstream server to use its default values instead.
+
+**How it works**:
+- Removes specified parameters from the `properties` section of tool input schemas
+- Removes hidden parameters from the `required` list if present
+- Applies to ALL tools that have the specified parameters
+- Case-sensitive: must match parameter names exactly (e.g., `language` not `Language`)
+
+**Example**: If a downstream tool keeps sending an invalid `language` parameter to `fetch_translation_notes`, use:
+```bash
+python -m src.translation_helps_mcp_proxy --hide-params "language,organization"
+```
+This hides both parameters, so the downstream tool won't send them, and the upstream server will use default values.
 
 ### 📋 Tool Discovery
 

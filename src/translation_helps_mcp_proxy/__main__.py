@@ -42,6 +42,8 @@ Examples:
                        help="Enable debug logging")
     parser.add_argument("--enabled-tools",
                        help="Comma-separated list of enabled tools")
+    parser.add_argument("--hide-params",
+                       help="Comma-separated list of parameters to hide from tool schemas")
     parser.add_argument("--list-tools", action="store_true",
                        help="List available tools and exit")
     
@@ -61,6 +63,8 @@ def run_mcp_proxy(args):
         sys.argv.append("--debug")
     if args.enabled_tools:
         sys.argv.extend(["--enabled-tools", args.enabled_tools])
+    if args.hide_params:
+        sys.argv.extend(["--hide-params", args.hide_params])
     if args.list_tools:
         sys.argv.append("--list-tools")
     
