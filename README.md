@@ -102,6 +102,38 @@ uvx git+https://github.com/JEdward7777/translation_helps_mcp_proxy.git --list-to
 - 🧹 **Clean** - No local dependencies or virtual environments
 - 🚀 **Fast** - uvx handles all dependency management automatically
 
+### Using uv sync (Alternative to pip)
+
+If you prefer using `uv` for dependency management instead of pip:
+
+```bash
+# Clone the repository
+git clone https://github.com/JEdward7777/translation_helps_mcp_proxy.git
+cd translation_helps_mcp_proxy
+
+# Sync dependencies using uv (creates .venv automatically)
+uv sync
+
+# Activate the virtual environment
+. .venv/bin/activate  # Linux/macOS
+# or
+.venv\Scripts\activate  # Windows
+
+# Test the package
+python -m src.translation_helps_mcp_proxy --help
+
+# Run tests
+pytest
+```
+
+**uv sync Benefits:**
+- 🚀 **Faster** - Much faster dependency resolution and installation
+- 🔒 **Locked** - Uses `uv.lock` file for reproducible builds
+- 📦 **Unified** - Single tool for all dependency management
+- 🎯 **Dev dependencies** - Automatically installs dev dependencies from `[dependency-groups]`
+
+**Note**: The `uv sync` command reads from [`pyproject.toml`](pyproject.toml:1) and creates/updates the virtual environment with all required dependencies, including development dependencies like pytest.
+
 ### Local Development Setup
 
 ```bash

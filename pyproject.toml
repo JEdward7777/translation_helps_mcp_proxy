@@ -53,4 +53,6 @@ translation_helps_mcp_proxy = ["*.json", "*.txt"]
 dev = [
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-timeout>=2.1.0",
 ]
