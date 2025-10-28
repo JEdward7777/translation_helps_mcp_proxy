@@ -46,6 +46,8 @@ Examples:
                        help="Comma-separated list of parameters to hide from tool schemas")
     parser.add_argument("--list-tools", action="store_true",
                        help="List available tools and exit")
+    parser.add_argument("--filter-book-chapter-notes", action="store_true",
+                       help="Filter out book-level and chapter-level notes from translation notes responses")
     
     return parser
 
@@ -67,6 +69,8 @@ def run_mcp_proxy(args):
         sys.argv.extend(["--hide-params", args.hide_params])
     if args.list_tools:
         sys.argv.append("--list-tools")
+    if args.filter_book_chapter_notes:
+        sys.argv.append("--filter-book-chapter-notes")
     
     # Run the MCP proxy (it's async, so we need asyncio.run)
     return asyncio.run(mcp_main())

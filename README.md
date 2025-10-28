@@ -306,7 +306,7 @@ CMD ["translation-helps-mcp-proxy"]
 
 ### 🛡️ Tool Filtering for Controlled Rollout
 
-**NEW FEATURE**: Control which MCP tools are available for enhanced safety during testing:
+Control which MCP tools are available for enhanced safety during testing:
 
 ```bash
 # FIRST: Discover all available tools
@@ -327,7 +327,7 @@ python -m src.translation_helps_mcp_proxy --enabled-tools ""
 
 ### 🔒 Parameter Hiding for Downstream Compatibility
 
-**NEW FEATURE**: Hide specific parameters from tool schemas to solve downstream compatibility issues:
+Hide specific parameters from tool schemas to solve downstream compatibility issues:
 
 ```bash
 # Hide language and organization parameters from all tools
@@ -355,6 +355,70 @@ python -m src.translation_helps_mcp_proxy \
 python -m src.translation_helps_mcp_proxy --hide-params "language,organization"
 ```
 This hides both parameters, so the downstream tool won't send them, and the upstream server will use default values.
+
+### 📚 Book/Chapter Note Filtering for Translation Workflows
+
+Filter out book-level and chapter-level notes from `fetch_translation_notes` responses to reduce redundancy and cost:
+
+```bash
+# Enable filtering of book and chapter notes
+python -m src.translation_helps_mcp_proxy --filter-book-chapter-notes
+
+# Combine with other options
+python -m src.translation_helps_mcp_proxy \
+  --filter-book-chapter-notes \
+  --enabled-tools "fetch_translation_notes"
+```
+
+**Use Case**: When processing verse-by-verse translations, the upstream server returns book-level and chapter-level notes for **every verse** in that book/chapter. This causes expensive redundancy when translating multiple verses sequentially.
+
+**Example Problem**:
+- Fetching notes for John 3:16 returns:
+  - ✅ Verse-specific notes for John 3:16 (what you need)
+  - ❌ "Introduction to John" (repeated for every verse in John)
+  - ❌ "John 3 Chapter Introduction" (repeated for every verse in chapter 3)
+
+**How it works**:
+- Automatically filters out notes with `Reference: "front:intro"` (book-level)
+- Automatically filters out notes with `Reference: "<chapter>:intro"` (chapter-level)
+- Keeps only verse-specific notes (e.g., `Reference: "3:16"`)
+- Updates the response metadata to reflect the filtered count
+
+**Benefits**:
+- **Reduces response size**: Eliminates duplicate book/chapter notes
+- **Lowers costs**: Less data to process in downstream translation workflows
+- **Improves clarity**: Only verse-specific notes are returned
+- **Maintains compatibility**: Preserves all metadata and response structure
+
+**Before filtering** (John 3:16):
+```json
+{
+  "items": [
+    {"Reference": "front:intro", "Note": "# Introduction to John..."},
+    {"Reference": "3:intro", "Note": "# John 3 Chapter Introduction..."},
+    {"Reference": "3:16", "Note": "Verse-specific note 1..."},
+    {"Reference": "3:16", "Note": "Verse-specific note 2..."}
+  ],
+  "metadata": {"totalCount": 9}
+}
+```
+
+**After filtering** (with `--filter-book-chapter-notes`):
+```json
+{
+  "items": [
+    {"Reference": "3:16", "Note": "Verse-specific note 1..."},
+    {"Reference": "3:16", "Note": "Verse-specific note 2..."}
+  ],
+  "metadata": {"totalCount": 7}
+}
+```
+
+**Recommended for**:
+- Verse-by-verse translation workflows
+- Automated translation processing pipelines
+- Cost-sensitive applications processing many verses
+- Any scenario where book/chapter context is not needed per verse
 
 ### 📋 Tool Discovery
 

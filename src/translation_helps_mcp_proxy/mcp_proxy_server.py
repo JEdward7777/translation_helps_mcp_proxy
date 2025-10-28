@@ -29,10 +29,12 @@ class MCPProxyServer:
     
     def __init__(self, upstream_url: str = "https://translation-helps-mcp.pages.dev/api/mcp",
                  verify_ssl: bool = False, enabled_tools: Optional[list[str]] = None,
-                 hidden_params: Optional[list[str]] = None):
+                 hidden_params: Optional[list[str]] = None,
+                 filter_book_chapter_notes: bool = False):
         self.upstream_url = upstream_url
         self.enabled_tools = enabled_tools  # None means all tools enabled
         self.hidden_params = hidden_params  # None means no params hidden
+        self.filter_book_chapter_notes = filter_book_chapter_notes  # Filter book/chapter notes
         self._upstream_tools = None  # Cache for upstream tools
         
         # Initialize server with proper name
@@ -118,6 +120,45 @@ class MCPProxyServer:
         if self.enabled_tools is None:
             return True  # All tools enabled by default
         return tool_name in self.enabled_tools
+    
+    def _filter_book_and_chapter_notes(self, response: Dict[str, Any]) -> Dict[str, Any]:
+        """Filter out book-level and chapter-level notes from translation notes response.
+        
+        Book-level notes have Reference: "front:intro"
+        Chapter-level notes have Reference: "<chapter>:intro"
+        """
+        if not self.filter_book_chapter_notes:
+            return response
+        
+        # Only filter if response has items
+        if 'items' not in response:
+            return response
+        
+        items = response['items']
+        
+        # Filter out book and chapter intro notes
+        filtered_items = []
+        for item in items:
+            reference = item.get('Reference', '')
+            # Skip book-level notes (front:intro)
+            if reference == 'front:intro':
+                continue
+            # Skip chapter-level notes (e.g., "3:intro", "4:intro", etc.)
+            if reference.endswith(':intro'):
+                continue
+            # Keep verse-specific notes
+            filtered_items.append(item)
+        
+        # Create a copy of the response with filtered items
+        filtered_response = response.copy()
+        filtered_response['items'] = filtered_items
+        
+        # Update metadata totalCount if it exists
+        if 'metadata' in filtered_response and 'totalCount' in filtered_response['metadata']:
+            filtered_response['metadata'] = filtered_response['metadata'].copy()
+            filtered_response['metadata']['totalCount'] = len(filtered_items)
+        
+        return filtered_response
     
     def _register_handlers(self):
         """Register all the MCP method handlers."""
@@ -408,6 +449,11 @@ class MCPProxyServer:
             try:
                 data = response.json()
                 logger.debug(f"Upstream response for {method}: {json.dumps(data, indent=2)[:500]}...")
+                
+                # Apply note filtering if this is a fetch_translation_notes call
+                if method == "tools/call" and params.get("name") == "fetch_translation_notes":
+                    data = self._filter_book_and_chapter_notes(data)
+                
                 return data
             except json.JSONDecodeError as e:
                 logger.error(f"Invalid JSON from upstream server: {e}")
@@ -466,6 +512,11 @@ async def main():
         action="store_true",
         help="List all available tools from upstream server and exit"
     )
+    parser.add_argument(
+        "--filter-book-chapter-notes",
+        action="store_true",
+        help="Filter out book-level and chapter-level notes from translation notes responses"
+    )
     
     args = parser.parse_args()
     
@@ -508,8 +559,18 @@ async def main():
         hidden_params = [param.strip() for param in args.hide_params.split(',')]
         logger.info(f"Parameter hiding enabled: {hidden_params}")
     
+    # Parse filter book/chapter notes flag
+    filter_book_chapter_notes = args.filter_book_chapter_notes
+    if filter_book_chapter_notes:
+        logger.info("Book and chapter note filtering enabled")
+    
     # Create the proxy server
-    proxy = MCPProxyServer(upstream_url=args.upstream_url, enabled_tools=enabled_tools, hidden_params=hidden_params)
+    proxy = MCPProxyServer(
+        upstream_url=args.upstream_url,
+        enabled_tools=enabled_tools,
+        hidden_params=hidden_params,
+        filter_book_chapter_notes=filter_book_chapter_notes
+    )
     
     try:
         # Test connection

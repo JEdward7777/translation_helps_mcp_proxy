@@ -23,6 +23,18 @@ async def proxy_server():
             await proxy.client.aclose()
 
 
+@pytest_asyncio.fixture
+async def proxy_server_with_filtering():
+    """Create a test MCPProxyServer instance with note filtering enabled."""
+    proxy = MCPProxyServer(verify_ssl=False, filter_book_chapter_notes=True)
+    try:
+        yield proxy
+    finally:
+        # Ensure cleanup
+        if not proxy.client.is_closed:
+            await proxy.client.aclose()
+
+
 @pytest.fixture
 def test_server_command():
     """Command to start the MCP server for subprocess tests."""
