@@ -1,3 +1,7 @@
+> **DEPRICATED:** This project was [rewritten with more features in TypeScript]([https://github.com/](https://github.com/JEdward7777/js-translation-helps-proxy)).  Subsequently the upstream data source changed formats requiring a rewrite of the TypeScript version.  This Python version of the library will no longer work because of the upstream changes and is thus depricated.
+
+---
+
 > **WARNING:** This project was vibe coded and there are a minimal number of MCP commands which have actually been completed. Do not be fooled by the overly optimistic automatic documentation. The development methodology is to pick a specific command that needs to be implemented and get the agent to write a test which verifies that it is failing, and then push it until it no longer fails. This has been done with the MCP command fetch_translation_notes. There are a couple other commands which do work, but most do not until this process is repeated on them.
 
 ---
