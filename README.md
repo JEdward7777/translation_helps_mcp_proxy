@@ -1,4 +1,4 @@
-> **DEPRICATED:** This project was [rewritten with more features in TypeScript](https://github.com/https://github.com/JEdward7777/js-translation-helps-proxy).  Subsequently the upstream data source changed formats requiring a rewrite of the TypeScript version.  This Python version of the library will no longer work because of the upstream changes and is thus depricated.
+> **DEPRICATED:** This project was [rewritten with more features in TypeScript](https://github.com/JEdward7777/js-translation-helps-proxy).  Subsequently the upstream data source changed formats requiring a rewrite of the TypeScript version.  This Python version of the library will no longer work because of the upstream changes and is thus depricated.
 
 ---
 
